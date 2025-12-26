@@ -1,0 +1,13 @@
+Range arbitrage
+latency arb
+
+
+Add fee-aware arbitrage
+
+Add slippage modeling
+
+Show subset/superset arbitrage
+
+Build a solver that auto-constructs positions
+
+Convert this into an ILP formulation

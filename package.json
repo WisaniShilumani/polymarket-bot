@@ -1,0 +1,29 @@
+{
+  "name": "polymarket-bot",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "tsx index.ts",
+    "build": "tsc"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/accounting": "^0.4.5",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.0.3",
+    "jest": "^30.2.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@polymarket/clob-client": "github:polymarket/clob-client",
+    "accounting": "^0.4.1",
+    "dotenv": "^17.2.3",
+    "ethers": "^6.16.0"
+  }
+}

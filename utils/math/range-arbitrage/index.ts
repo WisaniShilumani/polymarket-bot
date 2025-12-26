@@ -1,0 +1,65 @@
+import type { ArbitrageResult, Market, Position } from '../../../common/types';
+import { MarketSide } from '../../../common/enums';
+import { getTotalCost } from '../cost';
+import { getPayout } from '../payout';
+import { formatCurrency } from '../../accounting';
+
+interface RangeArbitrageResult {
+  arbitrageBundles: ArbitrageResult[];
+}
+
+export function checkMutuallyExclusiveArbitrage(positions: Position[], marketIds: string[]): ArbitrageResult {
+  if (marketIds.length < 2) {
+    throw new Error('At least two outcome states required');
+  }
+
+  const cost = getTotalCost(positions);
+  const payouts = marketIds.map((marketId) => getPayout(positions, marketId));
+  const minPayout = Math.min(...payouts);
+  const worstCaseProfit = minPayout - cost;
+
+  return {
+    isArbitrage: worstCaseProfit > 0,
+    worstCaseProfit,
+    cost,
+    minPayout,
+  };
+}
+
+export const rangeArbitrage = (markets: Market[], stakePerMarket = 1): RangeArbitrageResult => {
+  const marketIds = markets.map((m) => m.marketId);
+
+  // Strategy A: Buy YES on all ranges
+  const yesPositions: Position[] = markets.map((m) => ({
+    marketId: m.marketId,
+    side: MarketSide.Yes,
+    price: m.yesPrice,
+    size: stakePerMarket,
+  }));
+
+  // Strategy B: Buy NO on all ranges
+  const noPositions: Position[] = markets.map((m) => ({
+    marketId: m.marketId,
+    side: MarketSide.No,
+    price: 1 - m.yesPrice,
+    size: stakePerMarket,
+  }));
+
+  const yesArbitrage = checkMutuallyExclusiveArbitrage(yesPositions, marketIds);
+  const noArbitrage = checkMutuallyExclusiveArbitrage(noPositions, marketIds);
+  const arbitrageBundles = [yesArbitrage, noArbitrage].filter((a) => a.isArbitrage);
+  console.log(
+    `Betting yes on all ranges is a guaranteed arbitrage of ${formatCurrency(
+      yesArbitrage.worstCaseProfit,
+    )} at a cost of ${formatCurrency(yesArbitrage.cost)}`,
+  );
+  console.log(
+    `Betting no on all ranges is a guaranteed arbitrage of ${formatCurrency(
+      noArbitrage.worstCaseProfit,
+    )} at a cost of ${formatCurrency(noArbitrage.cost)}`,
+  );
+
+  return {
+    arbitrageBundles,
+  };
+};
