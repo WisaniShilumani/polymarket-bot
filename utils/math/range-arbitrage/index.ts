@@ -48,17 +48,6 @@ export const rangeArbitrage = (markets: Market[], stakePerMarket = 1): RangeArbi
   const yesArbitrage = checkMutuallyExclusiveArbitrage(yesPositions, marketIds);
   const noArbitrage = checkMutuallyExclusiveArbitrage(noPositions, marketIds);
   const arbitrageBundles = [yesArbitrage, noArbitrage].filter((a) => a.isArbitrage);
-  console.log(
-    `Betting yes on all ranges is a guaranteed arbitrage of ${formatCurrency(
-      yesArbitrage.worstCaseProfit,
-    )} at a cost of ${formatCurrency(yesArbitrage.cost)}`,
-  );
-  console.log(
-    `Betting no on all ranges is a guaranteed arbitrage of ${formatCurrency(
-      noArbitrage.worstCaseProfit,
-    )} at a cost of ${formatCurrency(noArbitrage.cost)}`,
-  );
-
   return {
     arbitrageBundles,
   };
