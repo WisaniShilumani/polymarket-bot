@@ -12,7 +12,6 @@ const openai = new OpenAI({
  * @returns true if the bets are mutually exclusive, false otherwise
  */
 export const areBetsMutuallyExclusive = async (bets: string): Promise<boolean> => {
-  console.log(`Checking if bets are mutually exclusive...`);
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     messages: [
@@ -24,11 +23,12 @@ Mutually exclusive bets are bets where only ONE outcome can be true/win. If one 
 
 Examples of mutually exclusive bets:
 - "Will the winner be Team A?", "Will the winner be Team B?", "Will the winner be Team C?" (only one team can win)
-- "Will Bitcoin reach $100k in January?", "Will Bitcoin reach $100k in February?", "Will Bitcoin reach $100k in March?" (if asking about the FIRST month it reaches $100k)
+- "Will Trump win the US presidency?", "Will Biden win the US presidency?" (only 1 can be true)
 
 Examples of NON-mutually exclusive bets:
 - "Will it rain tomorrow?", "Will the temperature exceed 30°C tomorrow?" (both can happen)
-- "Will candidate A win the primary?", "Will candidate A win the general election?" (both can be true)`,
+- "Will candidate A win the primary?", "Will candidate A win the general election?" (both can be true)
+- "Event by February 1st?", "Event by February 2nd?", "Event by February 3rd?" (overlapping events)`,
       },
       {
         role: 'user',

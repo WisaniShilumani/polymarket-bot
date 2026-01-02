@@ -250,7 +250,7 @@ interface GetEventsOptions {
 export const getEventsFromRest = async (options: GetEventsOptions = {}): Promise<PolymarketEvent[]> => {
   // Default to today's date in ISO format for end_date_min filter
   const today = new Date().toISOString();
-  const { limit = 100, offset = 0, closed = false, exclude_sports = true, end_date_min = today } = options;
+  const { limit = 100, offset = 0, closed = false, end_date_min = today } = options;
 
   const params = new URLSearchParams({
     limit: limit.toString(),

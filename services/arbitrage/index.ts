@@ -2,7 +2,7 @@ import { getMarketsFromRest, getEventsFromRest, createArbitrageOrders } from '..
 import { areBetsMutuallyExclusive } from '../openai';
 import { rangeArbitrage } from '../../utils/math/range-arbitrage';
 import type { EventRangeArbitrageOpportunity, Market, PolymarketEvent, PolymarketMarket } from '../../common/types';
-import { displayEventRangeArbitrageResults, displayTopOpportunities } from './utils';
+import { displayTopOpportunities } from './utils';
 import { formatCurrency } from '../../utils/accounting';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -10,7 +10,7 @@ import * as path from 'path';
 const ORDERS_FILE_PATH = path.join(process.cwd(), 'ORDERS.txt');
 
 const MAX_OPPORTUNITIES = 50;
-const MIN_LIQUIDITY = 4_000;
+const MIN_LIQUIDITY = 10_000;
 
 /**
  * Reads event IDs from the ORDERS.txt file
@@ -457,7 +457,7 @@ export const findAndAnalyzeArbitrage = async (): Promise<void> => {
   console.log('╚════════════════════════════════════════════════════════════════╝');
   const eventOpportunities = await scanEventsForRangeArbitrage({ limit: 1000 });
   // const marketOpportunities = await scanMarketsForSimpleArbitrage({ limit: 1000 });
-  displayEventRangeArbitrageResults(eventOpportunities);
+  // displayEventRangeArbitrageResults(eventOpportunities);
   // displayMarketSimpleArbitrageResults(marketOpportunities);
   displayTopOpportunities(eventOpportunities, []);
 };

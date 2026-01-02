@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { findAndAnalyzeArbitrage } from './services/arbitrage';
-import { findSentimentalArbitrage } from './services/sentimental-arbitrage';
+// import { findSentimentalArbitrage } from './services/sentimental-arbitrage';
 
 console.log('Starting Polymarket Arbitrage Detection Bot...');
 
