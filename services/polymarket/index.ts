@@ -1,4 +1,4 @@
-import { ClobClient } from '@polymarket/clob-client';
+import { ClobClient, Side } from '@polymarket/clob-client';
 import { Wallet } from '@ethersproject/wallet';
 import type { GetMarketsOptions, PolymarketEvent, PolymarketMarket } from '../../common/types';
 
@@ -8,6 +8,100 @@ const signer = new Wallet(process.env.POLYMARKET_PRIVATE_KEY!);
 const creds = new ClobClient(host, 137, signer).createOrDeriveApiKey();
 
 const signatureType = 1;
+
+/**
+ * Gets an initialized CLOB client for trading
+ */
+export const getClobClient = async (): Promise<ClobClient> => {
+  return new ClobClient(host, 137, signer, await creds, signatureType, funder);
+};
+
+export interface OrderParams {
+  tokenId: string;
+  price: number;
+  size: number;
+  side: 'BUY' | 'SELL';
+}
+
+export interface OrderResult {
+  success: boolean;
+  orderId?: string;
+  error?: string;
+}
+
+/**
+ * Creates and posts a single order to Polymarket
+ */
+export const createOrder = async (params: OrderParams): Promise<OrderResult> => {
+  try {
+    const clobClient = await getClobClient();
+    const side = params.side === 'BUY' ? Side.BUY : Side.SELL;
+
+    const response = await clobClient.createAndPostOrder({
+      tokenID: params.tokenId,
+      price: params.price,
+      size: params.size,
+      side,
+    });
+
+    console.log(
+      `  📝 Order placed: ${params.side} ${params.size} shares @ $${params.price} - Order ID: ${response.orderID}`,
+    );
+
+    return {
+      success: true,
+      orderId: response.orderID,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`  ❌ Order failed: ${errorMessage}`);
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+};
+
+export interface ArbitrageOrderParams {
+  markets: Array<{
+    tokenId: string;
+    question: string;
+    price: number;
+  }>;
+  side: 'YES' | 'NO';
+  sharesPerMarket: number;
+}
+
+/**
+ * Creates orders for an arbitrage opportunity (buying YES or NO on all markets)
+ */
+export const createArbitrageOrders = async (params: ArbitrageOrderParams): Promise<OrderResult[]> => {
+  const results: OrderResult[] = [];
+
+  console.log(
+    `\n🚀 Placing ${params.side} orders on ${params.markets.length} markets (${params.sharesPerMarket} shares each)...`,
+  );
+
+  for (const market of params.markets) {
+    const result = await createOrder({
+      tokenId: market.tokenId,
+      price: market.price,
+      size: params.sharesPerMarket,
+      side: 'BUY',
+    });
+
+    results.push(result);
+
+    if (!result.success) {
+      console.error(`  ⚠️ Failed to place order for: ${market.question}`);
+    }
+  }
+
+  const successCount = results.filter((r) => r.success).length;
+  console.log(`\n📊 Orders completed: ${successCount}/${params.markets.length} successful`);
+
+  return results;
+};
 
 const POLYMARKET_API_URL = 'https://gamma-api.polymarket.com';
 
@@ -47,11 +141,13 @@ export const getMarketsFromRest = async (options: GetMarketsOptions = {}): Promi
     offset = 0,
     closed = false,
     order,
-    ascending,
+    ascending = false,
     end_date_min = today,
     start_date_max = today,
     exclude_sports = true,
   } = options;
+
+  console.log({ limit, offset, closed });
 
   const params = new URLSearchParams({
     limit: limit.toString(),
@@ -63,7 +159,7 @@ export const getMarketsFromRest = async (options: GetMarketsOptions = {}): Promi
     params.append('order', order);
   }
 
-  if (ascending !== undefined) {
+  if (ascending) {
     params.append('ascending', ascending.toString());
   }
 
@@ -74,6 +170,8 @@ export const getMarketsFromRest = async (options: GetMarketsOptions = {}): Promi
   if (start_date_max) {
     params.append('start_date_max', start_date_max);
   }
+
+  console.log(params);
 
   const url = `${POLYMARKET_API_URL}/markets?${params.toString()}`;
 

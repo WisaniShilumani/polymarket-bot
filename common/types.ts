@@ -10,7 +10,6 @@ export interface Position {
   marketId: string;
   side: MarketSide;
   price: number; // entry price
-  size: number; // stake in dollars
 }
 
 export interface ArbitrageResult {
@@ -33,6 +32,7 @@ export interface PolymarketMarket {
   description?: string;
   slug: string;
   conditionId: string;
+  clobTokenIds?: string[]; // [yesTokenId, noTokenId]
   bestBid: string;
   bestAsk: string;
   lastTradePrice: string;

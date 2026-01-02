@@ -1,4 +1,4 @@
-import { getMarketsFromRest, getEventsFromRest } from '../polymarket';
+import { getMarketsFromRest, getEventsFromRest, createArbitrageOrders } from '../polymarket';
 import { areBetsMutuallyExclusive } from '../openai';
 import { rangeArbitrage } from '../../utils/math/range-arbitrage';
 import type { EventRangeArbitrageOpportunity, Market, PolymarketEvent, PolymarketMarket } from '../../common/types';
@@ -9,6 +9,72 @@ import {
 } from './utils';
 
 const MAX_OPPORTUNITIES = 50;
+
+// ============================================================================
+// ORDER EXECUTION
+// ============================================================================
+
+/**
+ * Executes arbitrage orders for a given opportunity
+ * Determines whether to buy YES or NO on all markets based on which strategy is profitable
+ */
+const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunity): Promise<void> => {
+  const { eventData, result } = opportunity;
+  const activeMarkets = eventData.markets.filter((m) => !m.closed);
+
+  // Find the profitable arbitrage bundle (YES strategy is index 0, NO strategy is index 1)
+  const yesBundle = result.arbitrageBundles[0];
+  const noBundle = result.arbitrageBundles[1];
+
+  // Determine which strategy to use (prefer the one with higher profit)
+  const useYesStrategy = yesBundle && (!noBundle || yesBundle.worstCaseProfit >= (noBundle?.worstCaseProfit ?? 0));
+  const selectedBundle = useYesStrategy ? yesBundle : noBundle;
+  const strategy = useYesStrategy ? 'YES' : 'NO';
+  const tokenIndex = useYesStrategy ? 0 : 1; // 0 = YES token, 1 = NO token
+
+  // Check minimum profit threshold of $0.01
+  const MIN_PROFIT_THRESHOLD = 0.01;
+  if (!selectedBundle || selectedBundle.worstCaseProfit < MIN_PROFIT_THRESHOLD) {
+    console.log(
+      `  ⚠️ Profit $${
+        selectedBundle?.worstCaseProfit.toFixed(4) ?? '0'
+      } is below minimum threshold of $${MIN_PROFIT_THRESHOLD}, skipping order creation`,
+    );
+    return;
+  }
+
+  // Build market params for order creation
+  const marketsWithTokens = activeMarkets.filter(
+    (m) => m.clobTokenIds && m.clobTokenIds.length > tokenIndex && m.clobTokenIds[tokenIndex],
+  );
+
+  console.log({ marketsWithTokens });
+  const marketsForOrders = marketsWithTokens.map((m) => ({
+    tokenId: JSON.parse(m.clobTokenIds as unknown as string)[tokenIndex] as string,
+    question: m.question,
+    price: useYesStrategy ? parseFloat(m.lastTradePrice) || 0.5 : 1 - (parseFloat(m.lastTradePrice) || 0.5),
+  }));
+
+  if (marketsWithTokens.length === 0) {
+    console.log(`  ⚠️ No valid token IDs found for event ${opportunity.eventId}, skipping order creation`);
+    return;
+  }
+
+  if (marketsWithTokens.length !== activeMarkets.length) {
+    console.log(
+      `  ⚠️ Only ${marketsWithTokens.length}/${activeMarkets.length} markets have valid token IDs, skipping order creation`,
+    );
+    return;
+  }
+
+  console.log(`\n💰 Executing ${strategy} arbitrage on event: ${opportunity.eventTitle}`);
+
+  await createArbitrageOrders({
+    markets: marketsForOrders,
+    side: strategy,
+    sharesPerMarket: result.normalizedShares,
+  });
+};
 
 // ============================================================================
 // EVENT-BASED RANGE ARBITRAGE
@@ -59,7 +125,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
   const yesNormalizedShares = calculateNormalizedShares(marketsForAnalysis, true);
   const noNormalizedShares = calculateNormalizedShares(marketsForAnalysis, false);
   const normalizedShares = Math.max(yesNormalizedShares, noNormalizedShares);
-  const result = rangeArbitrage(marketsForAnalysis, normalizedShares);
+  const result = rangeArbitrage(marketsForAnalysis, 1);
   const hasArbitrage = result.arbitrageBundles.some((bundle) => bundle.isArbitrage);
   if (!hasArbitrage) {
     return null;
@@ -131,6 +197,9 @@ const scanEventsForRangeArbitrage = async (
           console.log(
             `  ✅ Found: [${opportunity.eventId}] ${opportunity.eventTitle} - ${opportunity.markets.length} markets`,
           );
+
+          // Execute the arbitrage orders
+          await executeArbitrageOrders(opportunity);
 
           if (opportunities.length >= MAX_OPPORTUNITIES) {
             console.log(`\n⚠️  Reached ${MAX_OPPORTUNITIES} opportunities, stopping event scan...`);
@@ -293,8 +362,8 @@ export const findAndAnalyzeArbitrage = async (): Promise<void> => {
   console.log('║           POLYMARKET ARBITRAGE DETECTION BOT                   ║');
   console.log('╚════════════════════════════════════════════════════════════════╝');
   const eventOpportunities = await scanEventsForRangeArbitrage({ limit: 1000 });
-  const marketOpportunities = await scanMarketsForSimpleArbitrage({ limit: 1000 });
+  // const marketOpportunities = await scanMarketsForSimpleArbitrage({ limit: 1000 });
   displayEventRangeArbitrageResults(eventOpportunities);
-  displayMarketSimpleArbitrageResults(marketOpportunities);
-  displayTopOpportunities(eventOpportunities, marketOpportunities);
+  // displayMarketSimpleArbitrageResults(marketOpportunities);
+  displayTopOpportunities(eventOpportunities, []);
 };

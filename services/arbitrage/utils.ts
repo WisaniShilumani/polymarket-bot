@@ -96,13 +96,6 @@ export const displayEventRangeArbitrageResults = (opportunities: EventRangeArbit
         });
       }
 
-      console.log('\n   Event JSON:');
-      console.log(
-        JSON.stringify(opp.eventData, null, 2)
-          .split('\n')
-          .map((line) => '   ' + line)
-          .join('\n'),
-      );
       console.log('');
     });
   } else {
