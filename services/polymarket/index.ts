@@ -272,19 +272,7 @@ export const getEventsFromRest = async (options: GetEventsOptions = {}): Promise
       throw new Error(`Failed to fetch events: ${response.status} ${response.statusText}`);
     }
 
-    let events: PolymarketEvent[] = await response.json();
-
-    // Filter out sports events if exclude_sports is enabled
-    if (exclude_sports) {
-      events = events.filter((event) => {
-        const isSportsEvent =
-          event.title.toLowerCase().includes('vs. ') ||
-          event.title.toLowerCase().includes('vs ') ||
-          event.category?.toLowerCase() === 'sports';
-        return !isSportsEvent;
-      });
-    }
-
+    const events: PolymarketEvent[] = await response.json();
     return events;
   } catch (error) {
     console.error('Error fetching events from Polymarket API:', error);

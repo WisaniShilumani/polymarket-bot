@@ -2,13 +2,60 @@ import { getMarketsFromRest, getEventsFromRest, createArbitrageOrders } from '..
 import { areBetsMutuallyExclusive } from '../openai';
 import { rangeArbitrage } from '../../utils/math/range-arbitrage';
 import type { EventRangeArbitrageOpportunity, Market, PolymarketEvent, PolymarketMarket } from '../../common/types';
-import {
-  displayEventRangeArbitrageResults,
-  displayMarketSimpleArbitrageResults,
-  displayTopOpportunities,
-} from './utils';
+import { displayEventRangeArbitrageResults, displayTopOpportunities } from './utils';
+import { formatCurrency } from '../../utils/accounting';
+import * as fs from 'fs';
+import * as path from 'path';
+
+const ORDERS_FILE_PATH = path.join(process.cwd(), 'ORDERS.txt');
 
 const MAX_OPPORTUNITIES = 50;
+const MIN_LIQUIDITY = 4_000;
+
+/**
+ * Reads event IDs from the ORDERS.txt file
+ */
+const getOrderedEventIds = (): string[] => {
+  try {
+    if (fs.existsSync(ORDERS_FILE_PATH)) {
+      const content = fs.readFileSync(ORDERS_FILE_PATH, 'utf-8');
+      return content
+        .split('\n')
+        .map((id) => id.trim())
+        .filter(Boolean);
+    }
+  } catch (error) {
+    console.error('Error reading ORDERS.txt:', error);
+  }
+  return [];
+};
+
+/**
+ * Appends an event ID to the ORDERS.txt file
+ */
+const appendEventToOrdersFile = (eventId: string): void => {
+  try {
+    fs.appendFileSync(ORDERS_FILE_PATH, `${eventId}\n`, 'utf-8');
+    console.log(`  📝 Recorded event ${eventId} in ORDERS.txt`);
+  } catch (error) {
+    console.error('Error writing to ORDERS.txt:', error);
+  }
+};
+
+/**
+ * Gets the list of held event IDs from the environment variable and ORDERS.txt
+ */
+const getHeldEventIds = (): Set<string> => {
+  const heldEvents = process.env.HELD_EVENTS || '';
+  const envEventIds = heldEvents
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+  const orderedEventIds = getOrderedEventIds();
+
+  return new Set([...envEventIds, ...orderedEventIds]);
+};
 
 // ============================================================================
 // ORDER EXECUTION
@@ -31,6 +78,13 @@ const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunit
   const selectedBundle = useYesStrategy ? yesBundle : noBundle;
   const strategy = useYesStrategy ? 'YES' : 'NO';
   const tokenIndex = useYesStrategy ? 0 : 1; // 0 = YES token, 1 = NO token
+  const orderCost = activeMarkets.reduce(
+    (aggr, item) =>
+      aggr +
+      (useYesStrategy ? parseFloat(item.lastTradePrice) : 1 - parseFloat(item.lastTradePrice)) *
+        result.normalizedShares,
+    0,
+  );
 
   // Check minimum profit threshold of $0.01
   const MIN_PROFIT_THRESHOLD = 0.01;
@@ -43,12 +97,32 @@ const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunit
     return;
   }
 
+  // Check maximum order cost
+  const MAX_ORDER_COST = parseFloat(process.env.MAX_ORDER_COST || '4');
+  if (orderCost > MAX_ORDER_COST) {
+    console.log(
+      `  ⚠️ Total order cost ${formatCurrency(orderCost)} exceeds maximum of ${formatCurrency(
+        MAX_ORDER_COST,
+      )}, skipping order creation`,
+    );
+    return;
+  }
+
+  // Check minimum ROI threshold of 1.01%
+  const MIN_ROI_THRESHOLD = 1.01;
+  const roi = (selectedBundle.worstCaseProfit / selectedBundle.cost) * 100;
+  if (roi < MIN_ROI_THRESHOLD) {
+    console.log(
+      `  ⚠️ ROI ${roi.toFixed(2)}% is below minimum threshold of ${MIN_ROI_THRESHOLD}%, skipping order creation`,
+    );
+    return;
+  }
+
   // Build market params for order creation
   const marketsWithTokens = activeMarkets.filter(
     (m) => m.clobTokenIds && m.clobTokenIds.length > tokenIndex && m.clobTokenIds[tokenIndex],
   );
 
-  console.log({ marketsWithTokens });
   const marketsForOrders = marketsWithTokens.map((m) => ({
     tokenId: JSON.parse(m.clobTokenIds as unknown as string)[tokenIndex] as string,
     question: m.question,
@@ -67,13 +141,18 @@ const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunit
     return;
   }
 
-  console.log(`\n💰 Executing ${strategy} arbitrage on event: ${opportunity.eventTitle}`);
+  console.log(
+    `\n💰 Executing ${strategy} arbitrage on event: ${opportunity.eventTitle} for ${formatCurrency(orderCost)}`,
+  );
 
   await createArbitrageOrders({
     markets: marketsForOrders,
     side: strategy,
     sharesPerMarket: result.normalizedShares,
   });
+
+  // Record the event ID in ORDERS.txt after successful order
+  appendEventToOrdersFile(opportunity.eventId);
 };
 
 // ============================================================================
@@ -81,28 +160,39 @@ const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunit
 // ============================================================================
 
 /**
- * Calculates the minimum shares needed so each order meets the $1 minimum
- * For YES strategy: shares * yesPrice >= $1 for all markets
- * For NO strategy: shares * noPrice >= $1 for all markets
+ * Default minimum order size if not specified on market
  */
-const calculateNormalizedShares = (markets: Market[], forYesStrategy: boolean): number => {
+const DEFAULT_MIN_ORDER_SIZE = 5;
+
+/**
+ * Calculates the minimum shares needed so each order meets the minimum
+ * Uses the orderMinSize from the market data
+ */
+const calculateNormalizedShares = (markets: Market[], forYesStrategy: boolean, orderMinSize: number): number => {
   const prices = markets.map((m) => (forYesStrategy ? m.yesPrice : 1 - m.yesPrice));
   const minPrice = Math.min(...prices.filter((p) => p > 0));
-  if (minPrice <= 0) return 1;
+  if (minPrice <= 0) return orderMinSize;
   const sharesNeeded = 1 / minPrice;
-  return Math.ceil(sharesNeeded * 100) / 100;
+  // Ensure we meet the market's minimum order size
+  return Math.max(orderMinSize, Math.ceil(sharesNeeded * 100) / 100);
 };
 
 /**
  * Checks a single event for range arbitrage opportunities
  */
 const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<EventRangeArbitrageOpportunity | null> => {
+  // Skip events that are already held
+  const heldEventIds = getHeldEventIds();
+  if (heldEventIds.has(event.id)) {
+    return null;
+  }
+
   const activeMarkets = event.markets.filter((m) => !m.closed);
   if (!activeMarkets || activeMarkets.length < 2) {
     return null;
   }
 
-  const hasLowLiquidityMarket = activeMarkets.some((m) => m.liquidityNum < 10000);
+  const hasLowLiquidityMarket = activeMarkets.some((m) => m.liquidityNum < MIN_LIQUIDITY);
   if (hasLowLiquidityMarket) {
     return null;
   }
@@ -122,8 +212,11 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
     return null;
   }
 
-  const yesNormalizedShares = calculateNormalizedShares(marketsForAnalysis, true);
-  const noNormalizedShares = calculateNormalizedShares(marketsForAnalysis, false);
+  // Get the maximum orderMinSize across all markets in this event
+  const orderMinSize = Math.max(...activeMarkets.map((m) => m.orderMinSize ?? DEFAULT_MIN_ORDER_SIZE));
+
+  const yesNormalizedShares = calculateNormalizedShares(marketsForAnalysis, true, orderMinSize);
+  const noNormalizedShares = calculateNormalizedShares(marketsForAnalysis, false, orderMinSize);
   const normalizedShares = Math.max(yesNormalizedShares, noNormalizedShares);
   const result = rangeArbitrage(marketsForAnalysis, 1);
   const hasArbitrage = result.arbitrageBundles.some((bundle) => bundle.isArbitrage);
@@ -241,7 +334,7 @@ interface MarketSimpleArbitrageOpportunity {
  */
 const checkMarketForSimpleArbitrage = (market: PolymarketMarket): MarketSimpleArbitrageOpportunity | null => {
   // Filter out low volume markets (below $10,000)
-  if (market.liquidityNum < 10000) {
+  if (market.liquidityNum < MIN_LIQUIDITY) {
     return null;
   }
 
@@ -256,10 +349,11 @@ const checkMarketForSimpleArbitrage = (market: PolymarketMarket): MarketSimpleAr
     return null;
   }
 
-  // Calculate minimum shares needed to meet $1 minimum per order
+  // Calculate minimum shares needed using the market's orderMinSize
+  const orderMinSize = market.orderMinSize ?? DEFAULT_MIN_ORDER_SIZE;
   const minSharesForYes = 1 / yesPrice;
   const minSharesForNo = 1 / noPrice;
-  const minShares = Math.max(minSharesForYes, minSharesForNo);
+  const minShares = Math.max(minSharesForYes, minSharesForNo, orderMinSize);
   const shares = Math.ceil(minShares * 100) / 100;
 
   // Calculate actual costs with minimum shares

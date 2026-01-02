@@ -43,6 +43,7 @@ export interface PolymarketMarket {
   liquidityNum: number;
   liquidityAmm: number;
   liquidityClob: number;
+  orderMinSize: number; // Minimum order size in shares (e.g., 5)
   active: boolean;
   closed: boolean;
   archived: boolean;
