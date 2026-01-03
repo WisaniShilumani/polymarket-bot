@@ -191,22 +191,12 @@ const calculateNormalizedShares = (markets: Market[], forYesStrategy: boolean, o
  * Checks a single event for range arbitrage opportunities
  */
 const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<EventRangeArbitrageOpportunity | null> => {
-  // Skip events that are already held
   const heldEventIds = getHeldEventIds();
-  if (heldEventIds.has(event.id)) {
-    return null;
-  }
-
+  if (heldEventIds.has(event.id)) return null;
   const activeMarkets = event.markets.filter((m) => !m.closed);
-  if (!activeMarkets || activeMarkets.length < 2) {
-    return null;
-  }
-
+  if (!activeMarkets || activeMarkets.length < 2) return null;
   const hasLowLiquidityMarket = activeMarkets.some((m) => m.liquidityNum < MIN_LIQUIDITY);
-  if (hasLowLiquidityMarket) {
-    return null;
-  }
-
+  if (hasLowLiquidityMarket) return null;
   const marketsForAnalysis: Market[] = activeMarkets
     .filter((m) => !m.closed)
     .map((m) => ({
@@ -217,31 +207,18 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
 
   const totalYesProbability = marketsForAnalysis.reduce((sum, m) => sum + m.yesPrice, 0);
   const totalNoProbability = marketsForAnalysis.reduce((sum, m) => sum + (1 - m.yesPrice), 0);
-
-  if (totalYesProbability < 0.1 || totalNoProbability < 0.1) {
-    return null;
-  }
-
-  // Get the maximum orderMinSize across all markets in this event
+  if (totalYesProbability < 0.1 || totalNoProbability < 0.1) return null;
   const orderMinSize = Math.max(...activeMarkets.map((m) => m.orderMinSize ?? DEFAULT_MIN_ORDER_SIZE));
-
   const yesNormalizedShares = calculateNormalizedShares(marketsForAnalysis, true, orderMinSize);
   const noNormalizedShares = calculateNormalizedShares(marketsForAnalysis, false, orderMinSize);
   const normalizedShares = Math.max(yesNormalizedShares, noNormalizedShares);
   const result = rangeArbitrage(marketsForAnalysis, 1);
   const hasArbitrage = result.arbitrageBundles.some((bundle) => bundle.isArbitrage);
-  if (!hasArbitrage) {
-    return null;
-  }
-
-  // Check if the bets are mutually exclusive using OpenAI
-  const betsDescription = activeMarkets.map((m, i) => `${i + 1}. ${m.question}`).join('\n');
+  if (!hasArbitrage) return null;
+  const betsDescription =
+    '## ' + event.title + '\n' + activeMarkets.map((m, i) => `${i + 1}. ${m.question}`).join('\n');
   const isMutuallyExclusive = await areBetsMutuallyExclusive(betsDescription, event.id);
-
-  if (!isMutuallyExclusive) {
-    return null;
-  }
-
+  if (!isMutuallyExclusive) return null;
   return {
     eventId: event.id,
     eventSlug: event.slug,
@@ -352,45 +329,26 @@ interface MarketSimpleArbitrageOpportunity {
  * Checks if a market has a simple arbitrage opportunity (YES + NO < 1)
  */
 const checkMarketForSimpleArbitrage = (market: PolymarketMarket): MarketSimpleArbitrageOpportunity | null => {
-  // Filter out low volume markets (below $10,000)
-  if (market.liquidityNum < MIN_LIQUIDITY) {
-    return null;
-  }
-
-  // Use bestAsk prices for buying (the price you pay)
+  if (market.liquidityNum < MIN_LIQUIDITY) return null;
   const yesPrice = parseFloat(market.bestAsk) || parseFloat(market.lastTradePrice) || 0;
   const noPrice = 1 - (parseFloat(market.bestBid) || parseFloat(market.lastTradePrice) || 0);
-
   const totalCostPerShare = yesPrice + noPrice;
-
-  // Check if there's an arbitrage opportunity (price sum < 1)
-  if (totalCostPerShare >= 1 || yesPrice === 0 || noPrice === 0) {
-    return null;
-  }
-
-  // Calculate minimum shares needed using the market's orderMinSize
+  if (totalCostPerShare >= 1 || yesPrice === 0 || noPrice === 0) return null;
   const orderMinSize = market.orderMinSize ?? DEFAULT_MIN_ORDER_SIZE;
   const minSharesForYes = 1 / yesPrice;
   const minSharesForNo = 1 / noPrice;
   const minShares = Math.max(minSharesForYes, minSharesForNo, orderMinSize);
   const shares = Math.ceil(minShares * 100) / 100;
-
   // Calculate actual costs with minimum shares
   const yesCost = shares * yesPrice;
   const noCost = shares * noPrice;
   const totalCost = yesCost + noCost;
-
   // Calculate guaranteed payout and profit
   const guaranteedPayout = shares; // You get 1 share worth $1
   const guaranteedProfit = guaranteedPayout - totalCost;
-
   // Must have positive profit
-  if (guaranteedProfit <= 0) {
-    return null;
-  }
-
+  if (guaranteedProfit <= 0) return null;
   const roi = (guaranteedProfit / totalCost) * 100;
-
   return {
     marketId: market.id,
     slug: market.slug,
@@ -407,7 +365,7 @@ const checkMarketForSimpleArbitrage = (market: PolymarketMarket): MarketSimpleAr
 /**
  * Scans markets for simple arbitrage opportunities
  */
-const scanMarketsForSimpleArbitrage = async (
+export const scanMarketsForSimpleArbitrage = async (
   options: { limit?: number } = {},
 ): Promise<MarketSimpleArbitrageOpportunity[]> => {
   const opportunities: MarketSimpleArbitrageOpportunity[] = [];
@@ -435,8 +393,9 @@ const scanMarketsForSimpleArbitrage = async (
 
       let foundInBatch = 0;
       for (const market of markets) {
+        const maxOrderCost = parseFloat(process.env.MAX_ORDER_COST || '4');
         const opportunity = checkMarketForSimpleArbitrage(market);
-        if (opportunity) {
+        if (opportunity && opportunity.roi > 0.2 && opportunity.totalCost < maxOrderCost) {
           opportunities.push(opportunity);
           foundInBatch++;
 
@@ -474,7 +433,7 @@ export const findAndAnalyzeArbitrage = async (): Promise<boolean> => {
   logger.header('╔════════════════════════════════════════════════════════════════╗');
   logger.header('║           POLYMARKET ARBITRAGE DETECTION BOT                   ║');
   logger.header('╚════════════════════════════════════════════════════════════════╝');
-  const { opportunities: eventOpportunities, ordersPlaced } = await scanEventsForRangeArbitrage({ limit: 1000 });
+  const { opportunities: eventOpportunities, ordersPlaced } = await scanEventsForRangeArbitrage({ limit: 5000 });
   // const marketOpportunities = await scanMarketsForSimpleArbitrage({ limit: 1000 });
   // displayEventRangeArbitrageResults(eventOpportunities);
   // displayMarketSimpleArbitrageResults(marketOpportunities);

@@ -12,8 +12,8 @@ async function main() {
     ordersPlaced = await findAndAnalyzeArbitrage();
 
     if (!ordersPlaced) {
-      logger.warn('\n⏳ No orders placed. Waiting 10 seconds before next scan...\n');
-      await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 60 seconds
+      logger.warn('\n⏳ No orders placed. Waiting 3 seconds before next scan...\n');
+      await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait 3 seconds
     } else {
       logger.success('\n✅ Orders placed! Stopping scan.\n');
     }

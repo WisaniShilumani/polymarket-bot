@@ -1,16 +1,63 @@
 import OpenAI from 'openai';
 import { LRUCache } from 'lru-cache';
 import logger from '../../utils/logger';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+const MUTUALLY_EXCLUSIVE_FILE_PATH = path.join(process.cwd(), 'MUTUALLY_EXCLUSIVE.txt');
 
 // LRU cache to store mutually exclusive check results by event ID
 // Cache size: 1000 entries
 const mutuallyExclusiveCache = new LRUCache<string, boolean>({
   max: 1000,
 });
+
+/**
+ * Loads the mutually exclusive cache from MUTUALLY_EXCLUSIVE.txt on startup
+ */
+const loadCacheFromFile = (): void => {
+  try {
+    if (fs.existsSync(MUTUALLY_EXCLUSIVE_FILE_PATH)) {
+      const content = fs.readFileSync(MUTUALLY_EXCLUSIVE_FILE_PATH, 'utf-8');
+      const lines = content.split('\n').filter((line) => line.trim());
+      let loadedCount = 0;
+
+      for (const line of lines) {
+        const [eventId, resultStr] = line.split(':');
+        if (eventId && resultStr) {
+          const result = resultStr.trim().toLowerCase() === 'true';
+          mutuallyExclusiveCache.set(eventId.trim(), result);
+          loadedCount++;
+        }
+      }
+
+      if (loadedCount > 0) {
+        logger.info(`Loaded ${loadedCount} entries from MUTUALLY_EXCLUSIVE.txt into cache`);
+      }
+    }
+  } catch (error) {
+    logger.error('Error loading MUTUALLY_EXCLUSIVE.txt:', error);
+  }
+};
+
+/**
+ * Appends a result to MUTUALLY_EXCLUSIVE.txt
+ */
+const appendResultToFile = (eventId: string, result: boolean): void => {
+  try {
+    fs.appendFileSync(MUTUALLY_EXCLUSIVE_FILE_PATH, `${eventId}:${result}\n`, 'utf-8');
+    logger.debug(`  📝 Recorded event ${eventId} (${result}) in MUTUALLY_EXCLUSIVE.txt`);
+  } catch (error) {
+    logger.error('Error writing to MUTUALLY_EXCLUSIVE.txt:', error);
+  }
+};
+
+// Load cache from file on startup
+loadCacheFromFile();
 
 /**
  * Checks if a list of bets are mutually exclusive using OpenAI.
@@ -115,20 +162,34 @@ If YES → the set is **NOT mutually exclusive**.
 ### Step 3: Exhaustive Check
 Ask:
 - Is there a **possible world** where **all bets resolve NO**?
-- Is the set missing:
-  - A negation?
-  - A lower or upper bound?
-  - A “none of the above” outcome?
 
 If YES → the set is **NOT exhaustive**.
 
 #### Examples — Exhaustive
-- “Will XRP hit a new ATH by Dec 31, 2026?”
-  - “Will XRP NOT hit a new ATH by Dec 31, 2026?”
-- “Will interest rates rise ≥ 25bps?”
-  - “Will interest rates rise < 25bps?”
-- “Will the temperature be above 30°C?”
-  - “Will the temperature be 30°C or below?”
+##### XRP price
+1. “Will XRP hit a new ATH by Dec 31, 2026?”
+2. “Will XRP NOT hit a new ATH by Dec 31, 2026?”
+
+##### Interest rates
+1. “Will interest rates rise ≥ 25bps?”
+2. “Will interest rates rise < 25bps?”
+
+##### Temperature
+1. “Will the temperature be above 30°C?”
+2. “Will the temperature be 30°C or below?”
+
+##### Example: Football Match (Win / Draw / Win)
+1. Will CF Estrela da Amadora win on 2026-01-03?
+2. Will CF Estrela da Amadora vs. SC Braga end in a draw?
+3. Will SC Braga win on 2026-01-03?
+
+##### Example: Central Bank Interest Rate Decision (Complete Range Partition)
+1. Will the Fed decrease interest rates by 25 bps after the June 2026 meeting?
+2. Will the Fed increase interest rates by 25 bps after the June 2026 meeting?
+3. Will the Fed decrease interest rates by 50+ bps after the June 2026 meeting?
+4. Will there be no change in Fed interest rates after the June 2026 meeting?
+5. Will the Fed increase interest rates by 50+ bps after the June 2026 meeting?
+
 
 #### Examples — NOT Exhaustive
 - “Will X happen by Jan 31?”, “by Jun 30?”, “by Dec 31?”
@@ -200,5 +261,7 @@ Be strict: if the market wording allows ambiguity, treat it as **NOT arbitrage-s
   const result = parsed.mutuallyExclusive === 1 && parsed.exhaustive === 1;
   // Store result in cache
   mutuallyExclusiveCache.set(eventId, result);
+  // Persist result to file
+  appendResultToFile(eventId, result);
   return result;
 };

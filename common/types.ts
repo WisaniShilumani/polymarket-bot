@@ -83,6 +83,7 @@ export interface GetMarketsOptions {
   ascending?: boolean;
   end_date_min?: string;
   start_date_max?: string;
+  start_date_min?: string;
   exclude_sports?: boolean;
 }
 

@@ -2,6 +2,7 @@ import { ClobClient, Side } from '@polymarket/clob-client';
 import { Wallet } from '@ethersproject/wallet';
 import type { GetMarketsOptions, PolymarketEvent, PolymarketMarket } from '../../common/types';
 import logger from '../../utils/logger';
+import { subDays } from 'date-fns';
 
 const host = 'https://clob.polymarket.com';
 const funder = process.env.POLYMARKET_FUNDER; //This is the address listed below your profile picture when using the Polymarket site.
@@ -112,6 +113,7 @@ const POLYMARKET_API_URL = 'https://gamma-api.polymarket.com';
  */
 export const getMarketsFromRest = async (options: GetMarketsOptions = {}): Promise<PolymarketMarket[]> => {
   // Default to today's date in ISO format for date filters
+  const startDate = subDays(new Date(), 5).toISOString();
   const today = new Date().toISOString();
   const {
     limit = 100,
@@ -121,10 +123,9 @@ export const getMarketsFromRest = async (options: GetMarketsOptions = {}): Promi
     ascending = false,
     end_date_min = today,
     start_date_max = today,
+    start_date_min = startDate,
     exclude_sports = true,
   } = options;
-
-  logger.debug({ limit, offset, closed });
 
   const params = new URLSearchParams({
     limit: limit.toString(),
@@ -144,11 +145,13 @@ export const getMarketsFromRest = async (options: GetMarketsOptions = {}): Promi
     params.append('end_date_min', end_date_min);
   }
 
+  if (start_date_min) {
+    params.append('start_date_min', start_date_min);
+  }
+
   if (start_date_max) {
     params.append('start_date_max', start_date_max);
   }
-
-  logger.debug(params);
 
   const url = `${POLYMARKET_API_URL}/markets?${params.toString()}`;
 
@@ -225,11 +228,11 @@ interface GetEventsOptions {
  * @param options - Query options for filtering and pagination
  * @returns Array of event objects with their markets
  */
-export const getEventsFromRest = async (options: GetEventsOptions = {}): Promise<PolymarketEvent[]> => {
+export const getEventsFromRest = async (options: GetEventsOptions = {}, retries = 0): Promise<PolymarketEvent[]> => {
   // Default to today's date in ISO format for end_date_min filter
   const today = new Date().toISOString();
-  const oneMonthAgo = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString();
-  const { limit = 100, offset = 0, closed = false, end_date_min = today, start_date_min = oneMonthAgo } = options;
+  const startDate = new Date(new Date().setMonth(new Date().getMonth() - 6)).toISOString();
+  const { limit = 100, offset = 0, closed = false, end_date_min = today, start_date_min = startDate } = options;
 
   const params = new URLSearchParams({
     limit: limit.toString(),
@@ -258,6 +261,9 @@ export const getEventsFromRest = async (options: GetEventsOptions = {}): Promise
     const events: PolymarketEvent[] = await response.json();
     return events;
   } catch (error) {
+    if (retries < 3) {
+      return getEventsFromRest(options, retries + 1);
+    }
     logger.error('Error fetching events from Polymarket API:', error);
     throw error;
   }

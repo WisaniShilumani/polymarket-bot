@@ -25,10 +25,8 @@ interface SimpleArbitrageOptions {
  * Checks if a market has a simple arbitrage opportunity (YES + NO < 1)
  */
 const checkMarketForSimpleArbitrage = (market: PolymarketMarket): SimpleArbitrageOpportunity | null => {
-  // Use bestAsk prices for buying (the price you pay)
   const yesPrice = parseFloat(market.bestAsk) || parseFloat(market.lastTradePrice) || 0;
   const noPrice = 1 - (parseFloat(market.bestBid) || parseFloat(market.lastTradePrice) || 0);
-
   const totalCost = yesPrice + noPrice;
 
   // Check if there's an arbitrage opportunity
