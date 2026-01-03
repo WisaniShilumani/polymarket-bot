@@ -1,4 +1,4 @@
-import { ClobClient, Side } from '@polymarket/clob-client';
+import { AssetType, ClobClient, Side } from '@polymarket/clob-client';
 import { Wallet } from '@ethersproject/wallet';
 import type { GetMarketsOptions, PolymarketEvent, PolymarketMarket } from '../../common/types';
 import logger from '../../utils/logger';
@@ -15,6 +15,23 @@ const signatureType = 1;
 export const getClobClient = async (): Promise<ClobClient> => {
   const creds = new ClobClient(host, 137, signer).createOrDeriveApiKey();
   return new ClobClient(host, 137, signer, await creds, signatureType, funder);
+};
+
+/**
+ * Gets the account balance from Polymarket
+ * @returns The account balance in USDC (or 0 if unable to fetch)
+ */
+export const getAccountCollateralBalance = async (): Promise<number> => {
+  try {
+    const clobClient = await getClobClient();
+    const balances = await clobClient.getBalanceAllowance({ asset_type: AssetType.COLLATERAL });
+    const collateralBalance = +(Number(balances.balance) / 1000000).toFixed(3);
+    return collateralBalance;
+  } catch (error) {
+    logger.error('Error fetching account balance:', error);
+    // Return 0 if we can't fetch the balance, which will effectively disable orders
+    return 0;
+  }
 };
 
 export interface OrderParams {

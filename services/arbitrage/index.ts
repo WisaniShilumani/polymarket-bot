@@ -67,7 +67,10 @@ const getHeldEventIds = (): Set<string> => {
  * Determines whether to buy YES or NO on all markets based on which strategy is profitable
  * Returns true if orders were actually placed, false otherwise
  */
-const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunity): Promise<boolean> => {
+const executeArbitrageOrders = async (
+  opportunity: EventRangeArbitrageOpportunity,
+  collateralBalance: number,
+): Promise<boolean> => {
   const { eventData, result } = opportunity;
   const activeMarkets = eventData.markets.filter((m) => !m.closed);
 
@@ -101,10 +104,11 @@ const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunit
 
   // Check maximum order cost
   const MAX_ORDER_COST = parseFloat(process.env.MAX_ORDER_COST || '4');
-  if (orderCost > MAX_ORDER_COST) {
+  const maxOrderCost = Math.min(MAX_ORDER_COST, collateralBalance);
+  if (orderCost > maxOrderCost) {
     logger.warn(
       `  ⚠️ Total order cost ${formatCurrency(orderCost)} exceeds maximum of ${formatCurrency(
-        MAX_ORDER_COST,
+        maxOrderCost,
       )}, skipping order creation`,
     );
     return false;
@@ -244,6 +248,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
  */
 const scanEventsForRangeArbitrage = async (
   options: { limit?: number } = {},
+  collateralBalance: number,
 ): Promise<{ opportunities: EventRangeArbitrageOpportunity[]; ordersPlaced: boolean }> => {
   const opportunities: EventRangeArbitrageOpportunity[] = [];
   let offset = 0;
@@ -280,10 +285,7 @@ const scanEventsForRangeArbitrage = async (
             `  ✅ Found: [${opportunity.eventId}] ${opportunity.eventTitle} - ${opportunity.markets.length} markets`,
           );
 
-          // Execute the arbitrage orders
-          const orderPlaced = await executeArbitrageOrders(opportunity);
-
-          // If orders were actually placed, return early to stop scanning
+          const orderPlaced = await executeArbitrageOrders(opportunity, collateralBalance);
           if (orderPlaced) {
             ordersPlaced = true;
             logger.success(`\n✅ Orders placed successfully! Stopping scan.\n`);
@@ -367,6 +369,7 @@ const checkMarketForSimpleArbitrage = (market: PolymarketMarket): MarketSimpleAr
  */
 export const scanMarketsForSimpleArbitrage = async (
   options: { limit?: number } = {},
+  collateralBalance: number,
 ): Promise<MarketSimpleArbitrageOpportunity[]> => {
   const opportunities: MarketSimpleArbitrageOpportunity[] = [];
   let offset = 0;
@@ -393,7 +396,7 @@ export const scanMarketsForSimpleArbitrage = async (
 
       let foundInBatch = 0;
       for (const market of markets) {
-        const maxOrderCost = parseFloat(process.env.MAX_ORDER_COST || '4');
+        const maxOrderCost = Math.min(parseFloat(process.env.MAX_ORDER_COST || '4'), collateralBalance);
         const opportunity = checkMarketForSimpleArbitrage(market);
         if (opportunity && opportunity.roi > 0.2 && opportunity.totalCost < maxOrderCost) {
           opportunities.push(opportunity);
@@ -428,12 +431,15 @@ export const scanMarketsForSimpleArbitrage = async (
 // MAIN FUNCTION
 // ============================================================================
 
-export const findAndAnalyzeArbitrage = async (): Promise<boolean> => {
+export const findAndAnalyzeArbitrage = async (collateralBalance: number): Promise<boolean> => {
   logger.log('\n\n');
   logger.header('╔════════════════════════════════════════════════════════════════╗');
   logger.header('║           POLYMARKET ARBITRAGE DETECTION BOT                   ║');
   logger.header('╚════════════════════════════════════════════════════════════════╝');
-  const { opportunities: eventOpportunities, ordersPlaced } = await scanEventsForRangeArbitrage({ limit: 5000 });
+  const { opportunities: eventOpportunities, ordersPlaced } = await scanEventsForRangeArbitrage(
+    { limit: 5000 },
+    collateralBalance,
+  );
   // const marketOpportunities = await scanMarketsForSimpleArbitrage({ limit: 1000 });
   // displayEventRangeArbitrageResults(eventOpportunities);
   // displayMarketSimpleArbitrageResults(marketOpportunities);

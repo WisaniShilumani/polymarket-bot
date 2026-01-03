@@ -1,15 +1,17 @@
 import 'dotenv/config';
 import { findAndAnalyzeArbitrage } from './services/arbitrage';
 import logger from './utils/logger';
+import { getAccountCollateralBalance } from './services/polymarket';
 // import { findSentimentalArbitrage } from './services/sentimental-arbitrage';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot...');
 
 async function main() {
   let ordersPlaced = false;
+  const collateralBalance = await getAccountCollateralBalance();
 
   while (!ordersPlaced) {
-    ordersPlaced = await findAndAnalyzeArbitrage();
+    ordersPlaced = await findAndAnalyzeArbitrage(collateralBalance);
 
     if (!ordersPlaced) {
       logger.warn('\n⏳ No orders placed. Waiting 3 seconds before next scan...\n');
