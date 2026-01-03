@@ -4,13 +4,14 @@ import { rangeArbitrage } from '../../utils/math/range-arbitrage';
 import type { EventRangeArbitrageOpportunity, Market, PolymarketEvent, PolymarketMarket } from '../../common/types';
 import { displayTopOpportunities } from './utils';
 import { formatCurrency } from '../../utils/accounting';
+import logger from '../../utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
 
 const ORDERS_FILE_PATH = path.join(process.cwd(), 'ORDERS.txt');
 
 const MAX_OPPORTUNITIES = 50;
-const MIN_LIQUIDITY = 50_000;
+const MIN_LIQUIDITY = 10_000;
 
 /**
  * Reads event IDs from the ORDERS.txt file
@@ -25,7 +26,7 @@ const getOrderedEventIds = (): string[] => {
         .filter(Boolean);
     }
   } catch (error) {
-    console.error('Error reading ORDERS.txt:', error);
+    logger.error('Error reading ORDERS.txt:', error);
   }
   return [];
 };
@@ -36,9 +37,9 @@ const getOrderedEventIds = (): string[] => {
 const appendEventToOrdersFile = (eventId: string): void => {
   try {
     fs.appendFileSync(ORDERS_FILE_PATH, `${eventId}\n`, 'utf-8');
-    console.log(`  📝 Recorded event ${eventId} in ORDERS.txt`);
+    logger.success(`  📝 Recorded event ${eventId} in ORDERS.txt`);
   } catch (error) {
-    console.error('Error writing to ORDERS.txt:', error);
+    logger.error('Error writing to ORDERS.txt:', error);
   }
 };
 
@@ -64,8 +65,9 @@ const getHeldEventIds = (): Set<string> => {
 /**
  * Executes arbitrage orders for a given opportunity
  * Determines whether to buy YES or NO on all markets based on which strategy is profitable
+ * Returns true if orders were actually placed, false otherwise
  */
-const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunity): Promise<void> => {
+const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunity): Promise<boolean> => {
   const { eventData, result } = opportunity;
   const activeMarkets = eventData.markets.filter((m) => !m.closed);
 
@@ -89,33 +91,33 @@ const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunit
   // Check minimum profit threshold of $0.01
   const MIN_PROFIT_THRESHOLD = 0.01;
   if (!selectedBundle || selectedBundle.worstCaseProfit < MIN_PROFIT_THRESHOLD) {
-    console.log(
+    logger.warn(
       `  ⚠️ Profit $${
         selectedBundle?.worstCaseProfit.toFixed(4) ?? '0'
       } is below minimum threshold of $${MIN_PROFIT_THRESHOLD}, skipping order creation`,
     );
-    return;
+    return false;
   }
 
   // Check maximum order cost
   const MAX_ORDER_COST = parseFloat(process.env.MAX_ORDER_COST || '4');
   if (orderCost > MAX_ORDER_COST) {
-    console.log(
+    logger.warn(
       `  ⚠️ Total order cost ${formatCurrency(orderCost)} exceeds maximum of ${formatCurrency(
         MAX_ORDER_COST,
       )}, skipping order creation`,
     );
-    return;
+    return false;
   }
 
   // Check minimum ROI threshold of 1.01%
   const MIN_ROI_THRESHOLD = 1.01;
   const roi = (selectedBundle.worstCaseProfit / selectedBundle.cost) * 100;
   if (roi < MIN_ROI_THRESHOLD) {
-    console.log(
+    logger.warn(
       `  ⚠️ ROI ${roi.toFixed(2)}% is below minimum threshold of ${MIN_ROI_THRESHOLD}%, skipping order creation`,
     );
-    return;
+    return false;
   }
 
   // Build market params for order creation
@@ -130,29 +132,37 @@ const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunit
   }));
 
   if (marketsWithTokens.length === 0) {
-    console.log(`  ⚠️ No valid token IDs found for event ${opportunity.eventId}, skipping order creation`);
-    return;
+    logger.warn(`  ⚠️ No valid token IDs found for event ${opportunity.eventId}, skipping order creation`);
+    return false;
   }
 
   if (marketsWithTokens.length !== activeMarkets.length) {
-    console.log(
+    logger.warn(
       `  ⚠️ Only ${marketsWithTokens.length}/${activeMarkets.length} markets have valid token IDs, skipping order creation`,
     );
-    return;
+    return false;
   }
 
-  console.log(
+  logger.money(
     `\n💰 Executing ${strategy} arbitrage on event: ${opportunity.eventTitle} for ${formatCurrency(orderCost)}`,
   );
 
-  await createArbitrageOrders({
+  const orderResults = await createArbitrageOrders({
     markets: marketsForOrders,
     side: strategy,
     sharesPerMarket: result.normalizedShares,
   });
 
-  // Record the event ID in ORDERS.txt after successful order
-  appendEventToOrdersFile(opportunity.eventId);
+  // Check if any orders were successfully placed
+  const ordersPlaced = orderResults.some((result) => result.success);
+
+  if (ordersPlaced) {
+    // Record the event ID in ORDERS.txt after successful order
+    appendEventToOrdersFile(opportunity.eventId);
+    return true;
+  }
+
+  return false;
 };
 
 // ============================================================================
@@ -226,7 +236,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
 
   // Check if the bets are mutually exclusive using OpenAI
   const betsDescription = activeMarkets.map((m, i) => `${i + 1}. ${m.question}`).join('\n');
-  const isMutuallyExclusive = await areBetsMutuallyExclusive(betsDescription);
+  const isMutuallyExclusive = await areBetsMutuallyExclusive(betsDescription, event.id);
 
   if (!isMutuallyExclusive) {
     return null;
@@ -253,29 +263,31 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
 
 /**
  * Scans events for range arbitrage opportunities
+ * Returns both opportunities and whether orders were actually placed
  */
 const scanEventsForRangeArbitrage = async (
   options: { limit?: number } = {},
-): Promise<EventRangeArbitrageOpportunity[]> => {
+): Promise<{ opportunities: EventRangeArbitrageOpportunity[]; ordersPlaced: boolean }> => {
   const opportunities: EventRangeArbitrageOpportunity[] = [];
   let offset = 0;
   const limit = options.limit || 100;
+  let ordersPlaced = false;
 
-  console.log('\n╔════════════════════════════════════════════════════════════════╗');
-  console.log('║           SCANNING EVENTS FOR RANGE ARBITRAGE                  ║');
-  console.log('║        (Buying YES on all vs NO on all markets)                ║');
-  console.log('╚════════════════════════════════════════════════════════════════╝\n');
+  logger.header('\n╔════════════════════════════════════════════════════════════════╗');
+  logger.header('║           SCANNING EVENTS FOR RANGE ARBITRAGE                  ║');
+  logger.header('║        (Buying YES on all vs NO on all markets)                ║');
+  logger.header('╚════════════════════════════════════════════════════════════════╝\n');
 
   let hasMoreEvents = true;
 
   while (hasMoreEvents && opportunities.length < MAX_OPPORTUNITIES) {
     try {
-      console.log(`Scanning events ${offset} to ${offset + limit}...`);
+      logger.progress(`Scanning events ${offset} to ${offset + limit}...`);
 
       const events = await getEventsFromRest({ offset, limit, closed: false });
 
       if (events.length === 0) {
-        console.log('No more events to scan.');
+        logger.info('No more events to scan.');
         hasMoreEvents = false;
         break;
       }
@@ -287,30 +299,37 @@ const scanEventsForRangeArbitrage = async (
           opportunities.push(opportunity);
           foundInBatch++;
 
-          console.log(
+          logger.success(
             `  ✅ Found: [${opportunity.eventId}] ${opportunity.eventTitle} - ${opportunity.markets.length} markets`,
           );
 
           // Execute the arbitrage orders
-          await executeArbitrageOrders(opportunity);
+          const orderPlaced = await executeArbitrageOrders(opportunity);
+
+          // If orders were actually placed, return early to stop scanning
+          if (orderPlaced) {
+            ordersPlaced = true;
+            logger.success(`\n✅ Orders placed successfully! Stopping scan.\n`);
+            return { opportunities, ordersPlaced: true };
+          }
 
           if (opportunities.length >= MAX_OPPORTUNITIES) {
-            console.log(`\n⚠️  Reached ${MAX_OPPORTUNITIES} opportunities, stopping event scan...`);
+            logger.warn(`\n⚠️  Reached ${MAX_OPPORTUNITIES} opportunities, stopping event scan...`);
             hasMoreEvents = false;
             break;
           }
         }
       }
 
-      console.log(`  Found ${foundInBatch} opportunities in this batch\n`);
+      logger.info(`  Found ${foundInBatch} opportunities in this batch\n`);
       offset += limit;
     } catch (error) {
-      console.error('Error scanning events:', error);
+      logger.error('Error scanning events:', error);
       throw error;
     }
   }
 
-  return opportunities;
+  return { opportunities, ordersPlaced: false };
 };
 
 // ============================================================================
@@ -395,21 +414,21 @@ const scanMarketsForSimpleArbitrage = async (
   let offset = 0;
   const limit = options.limit || 100;
 
-  console.log('\n╔════════════════════════════════════════════════════════════════╗');
-  console.log('║          SCANNING MARKETS FOR SIMPLE ARBITRAGE                 ║');
-  console.log('║                (Markets where YES + NO < 1)                    ║');
-  console.log('╚════════════════════════════════════════════════════════════════╝\n');
+  logger.header('\n╔════════════════════════════════════════════════════════════════╗');
+  logger.header('║          SCANNING MARKETS FOR SIMPLE ARBITRAGE                 ║');
+  logger.header('║                (Markets where YES + NO < 1)                    ║');
+  logger.header('╚════════════════════════════════════════════════════════════════╝\n');
 
   let hasMoreMarkets = true;
 
   while (hasMoreMarkets && opportunities.length < MAX_OPPORTUNITIES) {
     try {
-      console.log(`Scanning markets ${offset} to ${offset + limit}...`);
+      logger.progress(`Scanning markets ${offset} to ${offset + limit}...`);
 
       const markets = await getMarketsFromRest({ offset, limit, closed: false });
 
       if (markets.length === 0) {
-        console.log('No more markets to scan.');
+        logger.info('No more markets to scan.');
         hasMoreMarkets = false;
         break;
       }
@@ -421,24 +440,24 @@ const scanMarketsForSimpleArbitrage = async (
           opportunities.push(opportunity);
           foundInBatch++;
 
-          console.log(
+          logger.success(
             `  ✅ Found: [${opportunity.marketId}] Profit: $${opportunity.guaranteedProfit.toFixed(
               4,
             )} (${opportunity.roi.toFixed(2)}% ROI)`,
           );
 
           if (opportunities.length >= MAX_OPPORTUNITIES) {
-            console.log(`\n⚠️  Reached ${MAX_OPPORTUNITIES} opportunities, stopping market scan...`);
+            logger.warn(`\n⚠️  Reached ${MAX_OPPORTUNITIES} opportunities, stopping market scan...`);
             hasMoreMarkets = false;
             break;
           }
         }
       }
 
-      console.log(`  Found ${foundInBatch} opportunities in this batch\n`);
+      logger.info(`  Found ${foundInBatch} opportunities in this batch\n`);
       offset += limit;
     } catch (error) {
-      console.error('Error scanning markets:', error);
+      logger.error('Error scanning markets:', error);
       throw error;
     }
   }
@@ -451,16 +470,16 @@ const scanMarketsForSimpleArbitrage = async (
 // ============================================================================
 
 export const findAndAnalyzeArbitrage = async (): Promise<boolean> => {
-  console.log('\n\n');
-  console.log('╔════════════════════════════════════════════════════════════════╗');
-  console.log('║           POLYMARKET ARBITRAGE DETECTION BOT                   ║');
-  console.log('╚════════════════════════════════════════════════════════════════╝');
-  const eventOpportunities = await scanEventsForRangeArbitrage({ limit: 1000 });
+  logger.log('\n\n');
+  logger.header('╔════════════════════════════════════════════════════════════════╗');
+  logger.header('║           POLYMARKET ARBITRAGE DETECTION BOT                   ║');
+  logger.header('╚════════════════════════════════════════════════════════════════╝');
+  const { opportunities: eventOpportunities, ordersPlaced } = await scanEventsForRangeArbitrage({ limit: 1000 });
   // const marketOpportunities = await scanMarketsForSimpleArbitrage({ limit: 1000 });
   // displayEventRangeArbitrageResults(eventOpportunities);
   // displayMarketSimpleArbitrageResults(marketOpportunities);
   displayTopOpportunities(eventOpportunities, []);
 
-  // Return true if opportunities were found, false otherwise
-  return eventOpportunities.length > 0;
+  // Return true only if orders were actually placed, not just if opportunities were found
+  return ordersPlaced;
 };

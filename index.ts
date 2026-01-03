@@ -1,20 +1,21 @@
 import 'dotenv/config';
 import { findAndAnalyzeArbitrage } from './services/arbitrage';
+import logger from './utils/logger';
 // import { findSentimentalArbitrage } from './services/sentimental-arbitrage';
 
-console.log('Starting Polymarket Arbitrage Detection Bot...');
+logger.info('Starting Polymarket Arbitrage Detection Bot...');
 
 async function main() {
-  let opportunityFound = false;
+  let ordersPlaced = false;
 
-  while (!opportunityFound) {
-    opportunityFound = await findAndAnalyzeArbitrage();
+  while (!ordersPlaced) {
+    ordersPlaced = await findAndAnalyzeArbitrage();
 
-    if (!opportunityFound) {
-      console.log('\n⏳ No opportunities found. Waiting 10 seconds before next scan...\n');
-      await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
+    if (!ordersPlaced) {
+      logger.warn('\n⏳ No orders placed. Waiting 10 seconds before next scan...\n');
+      await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 60 seconds
     } else {
-      console.log('\n✅ Opportunity found! Stopping scan.\n');
+      logger.success('\n✅ Orders placed! Stopping scan.\n');
     }
   }
   // await findSentimentalArbitrage();

@@ -1,105 +1,106 @@
 import type { EventRangeArbitrageOpportunity, MarketSimpleArbitrageOpportunity } from '../../common/types';
+import logger from '../../utils/logger';
 
 export const displayMarketSimpleArbitrageResults = (opportunities: MarketSimpleArbitrageOpportunity[]) => {
-  console.log('\n\n');
-  console.log('╔════════════════════════════════════════════════════════════════╗');
-  console.log('║             MARKET SIMPLE ARBITRAGE RESULTS                    ║');
-  console.log('╚════════════════════════════════════════════════════════════════╝\n');
+  logger.log('\n\n');
+  logger.header('╔════════════════════════════════════════════════════════════════╗');
+  logger.header('║             MARKET SIMPLE ARBITRAGE RESULTS                    ║');
+  logger.header('╚════════════════════════════════════════════════════════════════╝\n');
 
-  console.log(`Total Opportunities Found: ${opportunities.length}\n`);
+  logger.info(`Total Opportunities Found: ${opportunities.length}\n`);
 
   if (opportunities.length > 0) {
     // Sort by ROI descending
     opportunities.sort((a, b) => b.roi - a.roi);
 
-    console.log('═'.repeat(70));
-    console.log('OPPORTUNITIES (sorted by ROI):');
-    console.log('═'.repeat(70));
-    console.log('');
+    logger.header('═'.repeat(70));
+    logger.header('OPPORTUNITIES (sorted by ROI):');
+    logger.header('═'.repeat(70));
+    logger.log('');
 
     opportunities.forEach((opp, index) => {
-      console.log(`${index + 1}. ${opp.question}`);
-      console.log(`   Market ID: ${opp.marketId}`);
-      console.log(`   Slug: ${opp.slug}`);
-      console.log(`   URL: https://polymarket.com/event/${opp.slug}`);
-      console.log(`   API: https://gamma-api.polymarket.com/markets/${opp.marketId}`);
-      console.log(`   YES Order Cost: $${opp.yesPrice.toFixed(2)}`);
-      console.log(`   NO Order Cost:  $${opp.noPrice.toFixed(2)}`);
-      console.log(`   ─────────────────────────────────`);
-      console.log(`   Total Cost:         $${opp.totalCost.toFixed(2)}`);
-      console.log(`   Guaranteed Profit:  $${opp.guaranteedProfit.toFixed(2)}`);
-      console.log(`   ROI:                ${opp.roi.toFixed(2)}%`);
-      console.log('');
+      logger.highlight(`${index + 1}. ${opp.question}`);
+      logger.info(`   Market ID: ${opp.marketId}`);
+      logger.info(`   Slug: ${opp.slug}`);
+      logger.info(`   URL: https://polymarket.com/event/${opp.slug}`);
+      logger.info(`   API: https://gamma-api.polymarket.com/markets/${opp.marketId}`);
+      logger.info(`   YES Order Cost: $${opp.yesPrice.toFixed(2)}`);
+      logger.info(`   NO Order Cost:  $${opp.noPrice.toFixed(2)}`);
+      logger.log(`   ─────────────────────────────────`);
+      logger.money(`   Total Cost:         $${opp.totalCost.toFixed(2)}`);
+      logger.money(`   Guaranteed Profit:  $${opp.guaranteedProfit.toFixed(2)}`);
+      logger.success(`   ROI:                ${opp.roi.toFixed(2)}%`);
+      logger.log('');
     });
 
     const totalProfit = opportunities.reduce((sum, opp) => sum + opp.guaranteedProfit, 0);
     const totalCost = opportunities.reduce((sum, opp) => sum + opp.totalCost, 0);
     const avgROI = opportunities.reduce((sum, opp) => sum + opp.roi, 0) / opportunities.length;
 
-    console.log('═'.repeat(70));
-    console.log('SUMMARY STATISTICS:');
-    console.log('═'.repeat(70));
-    console.log(`Total Opportunities: ${opportunities.length}`);
-    console.log(`Total Potential Profit: $${totalProfit.toFixed(2)}`);
-    console.log(`Total Required Capital: $${totalCost.toFixed(2)}`);
-    console.log(`Average ROI: ${avgROI.toFixed(2)}%`);
-    console.log(`Best ROI: ${opportunities[0]?.roi.toFixed(2)}%`);
-    console.log(`Worst ROI: ${opportunities[opportunities.length - 1]?.roi.toFixed(2)}%`);
-    console.log('');
+    logger.header('═'.repeat(70));
+    logger.header('SUMMARY STATISTICS:');
+    logger.header('═'.repeat(70));
+    logger.info(`Total Opportunities: ${opportunities.length}`);
+    logger.money(`Total Potential Profit: $${totalProfit.toFixed(2)}`);
+    logger.money(`Total Required Capital: $${totalCost.toFixed(2)}`);
+    logger.success(`Average ROI: ${avgROI.toFixed(2)}%`);
+    logger.success(`Best ROI: ${opportunities[0]?.roi.toFixed(2)}%`);
+    logger.success(`Worst ROI: ${opportunities[opportunities.length - 1]?.roi.toFixed(2)}%`);
+    logger.log('');
   } else {
-    console.log('No market simple arbitrage opportunities found.\n');
+    logger.warn('No market simple arbitrage opportunities found.\n');
   }
 };
 
 export const displayEventRangeArbitrageResults = (opportunities: EventRangeArbitrageOpportunity[]) => {
-  console.log('\n\n');
-  console.log('╔════════════════════════════════════════════════════════════════╗');
-  console.log('║               EVENT RANGE ARBITRAGE RESULTS                    ║');
-  console.log('╚════════════════════════════════════════════════════════════════╝\n');
+  logger.log('\n\n');
+  logger.header('╔════════════════════════════════════════════════════════════════╗');
+  logger.header('║               EVENT RANGE ARBITRAGE RESULTS                    ║');
+  logger.header('╚════════════════════════════════════════════════════════════════╝\n');
 
-  console.log(`Total Opportunities Found: ${opportunities.length}\n`);
+  logger.info(`Total Opportunities Found: ${opportunities.length}\n`);
 
   if (opportunities.length > 0) {
-    console.log('═'.repeat(70));
-    console.log('OPPORTUNITIES:');
-    console.log('═'.repeat(70));
-    console.log('');
+    logger.header('═'.repeat(70));
+    logger.header('OPPORTUNITIES:');
+    logger.header('═'.repeat(70));
+    logger.log('');
 
     opportunities.forEach((opp, index) => {
-      console.log(`${index + 1}. ${opp.eventTitle}`);
-      console.log(`   Event ID: ${opp.eventId}`);
-      console.log(`   Slug: ${opp.eventSlug}`);
-      console.log(`   URL: https://polymarket.com/event/${opp.eventSlug}`);
-      console.log(`   Markets (${opp.markets.length}):`);
+      logger.highlight(`${index + 1}. ${opp.eventTitle}`);
+      logger.info(`   Event ID: ${opp.eventId}`);
+      logger.info(`   Slug: ${opp.eventSlug}`);
+      logger.info(`   URL: https://polymarket.com/event/${opp.eventSlug}`);
+      logger.info(`   Markets (${opp.markets.length}):`);
 
       opp.markets.forEach((market, idx) => {
-        console.log(`     ${idx + 1}. ${market.question}`);
-        console.log(`        Market ID: ${market.marketId}`);
-        console.log(`        Slug: ${market.slug}`);
-        console.log(`        YES Price: ${(market.yesPrice * 100).toFixed(2)}%`);
+        logger.info(`     ${idx + 1}. ${market.question}`);
+        logger.debug(`        Market ID: ${market.marketId}`);
+        logger.debug(`        Slug: ${market.slug}`);
+        logger.info(`        YES Price: ${(market.yesPrice * 100).toFixed(2)}%`);
       });
 
-      console.log('\n   Arbitrage Bundles:');
+      logger.log('\n   Arbitrage Bundles:');
       const normalizedShares = opp.result.normalizedShares || 1;
       if (opp.result.arbitrageBundles && opp.result.arbitrageBundles.length > 0) {
         opp.result.arbitrageBundles.forEach((bundle: any, idx: number) => {
           if (bundle.isArbitrage) {
-            console.log(`\n     Bundle ${idx + 1}:`);
-            console.log(`       ✅ Is Arbitrage: ${bundle.isArbitrage}`);
-            console.log(`       💰 Worst Case Profit: $${bundle.worstCaseProfit.toFixed(2)}`);
-            console.log(
+            logger.info(`\n     Bundle ${idx + 1}:`);
+            logger.success(`       ✅ Is Arbitrage: ${bundle.isArbitrage}`);
+            logger.money(`       💰 Worst Case Profit: $${bundle.worstCaseProfit.toFixed(2)}`);
+            logger.money(
               `       💵 Total Cost: $${bundle.cost.toFixed(2)} (${normalizedShares.toFixed(2)} shares, min $1/order)`,
             );
-            console.log(`       📊 Min Payout: $${bundle.minPayout.toFixed(2)}`);
-            console.log(`       📈 ROI: ${((bundle.worstCaseProfit / bundle.cost) * 100).toFixed(2)}%`);
+            logger.info(`       📊 Min Payout: $${bundle.minPayout.toFixed(2)}`);
+            logger.success(`       📈 ROI: ${((bundle.worstCaseProfit / bundle.cost) * 100).toFixed(2)}%`);
           }
         });
       }
 
-      console.log('');
+      logger.log('');
     });
   } else {
-    console.log('No event range arbitrage opportunities found.\n');
+    logger.warn('No event range arbitrage opportunities found.\n');
   }
 };
 
@@ -107,11 +108,12 @@ export const displayTopOpportunities = (
   eventOpps: EventRangeArbitrageOpportunity[],
   marketOpps: MarketSimpleArbitrageOpportunity[],
 ) => {
-  console.log('\n\n');
-  console.log('╔════════════════════════════════════════════════════════════════╗');
-  console.log('║                  TOP ARBITRAGE OPPORTUNITIES                   ║');
-  console.log('║                    (Sorted by ROI)                             ║');
-  console.log('╚════════════════════════════════════════════════════════════════╝\n');
+  if (!eventOpps.length && !marketOpps.length) return logger.warn('No opportunities found.\n');
+  logger.log('\n\n');
+  logger.header('╔════════════════════════════════════════════════════════════════╗');
+  logger.header('║                  TOP ARBITRAGE OPPORTUNITIES                   ║');
+  logger.header('║                    (Sorted by ROI)                             ║');
+  logger.header('╚════════════════════════════════════════════════════════════════╝\n');
 
   interface TopOpportunity {
     marketId: string;
@@ -169,9 +171,9 @@ export const displayTopOpportunities = (
   const topOpportunities = allOpportunities.slice(0, 20);
 
   // Display table
-  console.log('┌────┬──────────┬──────────┬───────────┬──────────┐');
-  console.log('│ #  │ Type     │ ROI      │ Profit    │ Cost     │');
-  console.log('├────┼──────────┼──────────┼───────────┼──────────┤');
+  logger.log('┌────┬──────────┬──────────┬───────────┬──────────┐');
+  logger.log('│ #  │ Type     │ ROI      │ Profit    │ Cost     │');
+  logger.log('├────┼──────────┼──────────┼───────────┼──────────┤');
 
   topOpportunities.forEach((opp, index) => {
     const num = (index + 1).toString().padEnd(2);
@@ -180,32 +182,32 @@ export const displayTopOpportunities = (
     const profit = `$${opp.profit.toFixed(2)}`.padEnd(9);
     const cost = `$${opp.cost.toFixed(2)}`.padEnd(8);
 
-    console.log(`│ ${num} │ ${type} │ ${roi} │ ${profit} │ ${cost} │`);
+    logger.log(`│ ${num} │ ${type} │ ${roi} │ ${profit} │ ${cost} │`);
   });
 
-  console.log('└────┴──────────┴──────────┴───────────┴──────────┘');
-  console.log('');
+  logger.log('└────┴──────────┴──────────┴───────────┴──────────┘');
+  logger.log('');
 
   // Display detailed betting instructions for top 10
-  console.log('═'.repeat(70));
-  console.log('DETAILED BETTING INSTRUCTIONS (Top 10):');
-  console.log('═'.repeat(70));
-  console.log('');
+  logger.header('═'.repeat(70));
+  logger.header('DETAILED BETTING INSTRUCTIONS (Top 10):');
+  logger.header('═'.repeat(70));
+  logger.log('');
 
   topOpportunities.slice(0, 10).forEach((opp, index) => {
-    console.log(`${index + 1}. ${opp.question}`);
-    console.log(
+    logger.highlight(`${index + 1}. ${opp.question}`);
+    logger.info(
       `   Type: ${opp.type} | ROI: ${opp.roi.toFixed(2)}% | Profit: $${opp.profit.toFixed(
         2,
       )} | Cost: $${opp.cost.toFixed(2)}`,
     );
-    console.log(`   URL: ${opp.url}`);
-    console.log(`   API: https://gamma-api.polymarket.com/markets/${opp.marketId}`);
-    console.log('   Bets to place:');
+    logger.info(`   URL: ${opp.url}`);
+    logger.debug(`   API: https://gamma-api.polymarket.com/markets/${opp.marketId}`);
+    logger.log('   Bets to place:');
     opp.bets.forEach((bet, idx) => {
-      console.log(`     ${idx + 1}. ${bet}`);
+      logger.money(`     ${idx + 1}. ${bet}`);
     });
-    console.log('');
+    logger.log('');
   });
 
   // Summary statistics
@@ -213,15 +215,15 @@ export const displayTopOpportunities = (
   const totalCost = allOpportunities.reduce((sum, opp) => sum + opp.cost, 0);
   const avgROI = allOpportunities.reduce((sum, opp) => sum + opp.roi, 0) / allOpportunities.length;
 
-  console.log('═'.repeat(70));
-  console.log('OVERALL SUMMARY:');
-  console.log('═'.repeat(70));
-  console.log(`Total Opportunities: ${allOpportunities.length}`);
-  console.log(`  - Event-based: ${eventOpps.length}`);
-  console.log(`  - Market-based: ${marketOpps.length}`);
-  console.log(`Total Potential Profit: $${totalProfit.toFixed(2)}`);
-  console.log(`Total Required Capital: $${totalCost.toFixed(2)}`);
-  console.log(`Average ROI: ${avgROI.toFixed(2)}%`);
-  console.log(`Best ROI: ${allOpportunities[0]?.roi.toFixed(2)}%`);
-  console.log('');
+  logger.header('═'.repeat(70));
+  logger.header('OVERALL SUMMARY:');
+  logger.header('═'.repeat(70));
+  logger.info(`Total Opportunities: ${allOpportunities.length}`);
+  logger.info(`  - Event-based: ${eventOpps.length}`);
+  logger.info(`  - Market-based: ${marketOpps.length}`);
+  logger.money(`Total Potential Profit: $${totalProfit.toFixed(2)}`);
+  logger.money(`Total Required Capital: $${totalCost.toFixed(2)}`);
+  logger.success(`Average ROI: ${avgROI.toFixed(2)}%`);
+  logger.success(`Best ROI: ${allOpportunities[0]?.roi.toFixed(2)}%`);
+  logger.log('');
 };

@@ -2,6 +2,7 @@ import type { LatencyArbResult, Position } from '../../../common/types';
 import { getTotalCost } from '../cost';
 import { getLatencyPayout } from '../latency-payout';
 import { LatencyState } from '../../../common/enums';
+import logger from '../../logger';
 
 /**
  * Checks subset/superset latency arbitrage.
@@ -16,7 +17,7 @@ export const checkLatencyArbitrage = (
   const cost = getTotalCost(positions);
   const states: LatencyState[] = [LatencyState.Both, LatencyState.B, LatencyState.Neither];
   const payouts = states.map((state) => getLatencyPayout(positions, state, subsetId, supersetId));
-  console.log('Payouts:', payouts);
+  logger.debug('Payouts:', payouts);
   const minPayout = Math.min(...payouts);
   const worstCaseProfit = minPayout - cost;
 

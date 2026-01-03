@@ -1,5 +1,6 @@
 import { getEventsFromRest } from '../polymarket';
 import type { PolymarketEvent } from '../../common/types';
+import logger from '../../utils/logger';
 
 const BATCH_SIZE = 500;
 
@@ -46,11 +47,11 @@ const sendEventsForArbitrageDetection = async (events: EventPayload[]): Promise<
     }
 
     const result: SentimentalArbitrageResponse = await response.json();
-    console.log(`  ✅ Received ${result.output?.length || 0} arbitrage opportunities from API`);
+    logger.success(`  ✅ Received ${result.output?.length || 0} arbitrage opportunities from API`);
 
     return result.output || [];
   } catch (error) {
-    console.error('Error calling sentimental arbitrage API:', error);
+    logger.error('Error calling sentimental arbitrage API:', error);
     throw error;
   }
 };
@@ -60,9 +61,9 @@ const sendEventsForArbitrageDetection = async (events: EventPayload[]): Promise<
  * Fetches 500 events at a time, sends to API, and continues until 20 opportunities are found
  */
 export const findSentimentalArbitrage = async (): Promise<void> => {
-  console.log('\n╔════════════════════════════════════════════════════════════════╗');
-  console.log('║        SCANNING FOR SENTIMENTAL ARBITRAGE OPPORTUNITIES        ║');
-  console.log('╚════════════════════════════════════════════════════════════════╝\n');
+  logger.header('\n╔════════════════════════════════════════════════════════════════╗');
+  logger.header('║        SCANNING FOR SENTIMENTAL ARBITRAGE OPPORTUNITIES        ║');
+  logger.header('╚════════════════════════════════════════════════════════════════╝\n');
 
   try {
     let offset = 0;
@@ -72,18 +73,18 @@ export const findSentimentalArbitrage = async (): Promise<void> => {
     let allOpportunities: IOpportunity[] = [];
     let scannedEvents: PolymarketEvent[] = [];
 
-    console.log(
+    logger.info(
       `Fetching events from Polymarket and checking for arbitrage (target: ${MAX_OPPORTUNITIES} opportunities)...\n`,
     );
 
     // Keep fetching and checking until we find 20 opportunities or run out of events
     while (allOpportunities.length < MAX_OPPORTUNITIES) {
-      console.log(`Fetching events ${offset} to ${offset + limit}...`);
+      logger.progress(`Fetching events ${offset} to ${offset + limit}...`);
 
       const events = await getEventsFromRest({ offset, limit, closed: false });
 
       if (events.length === 0) {
-        console.log('No more events to fetch.\n');
+        logger.info('No more events to fetch.\n');
         break;
       }
 
@@ -96,7 +97,7 @@ export const findSentimentalArbitrage = async (): Promise<void> => {
         title: event.title,
       }));
 
-      console.log(`  Sending ${eventPayloads.length} events to sentimental arbitrage detector...`);
+      logger.info(`  Sending ${eventPayloads.length} events to sentimental arbitrage detector...`);
 
       // Send to API and check for arbitrage
       const batchOpportunities = await sendEventsForArbitrageDetection(eventPayloads);
@@ -104,54 +105,54 @@ export const findSentimentalArbitrage = async (): Promise<void> => {
       // Add found opportunities to our collection
       if (batchOpportunities.length > 0) {
         allOpportunities.push(...batchOpportunities);
-        console.log(
+        logger.success(
           `  ✅ Found ${batchOpportunities.length} opportunities in this batch! Total: ${allOpportunities.length}/${MAX_OPPORTUNITIES}`,
         );
 
         // If we've reached our target, stop
         if (allOpportunities.length >= MAX_OPPORTUNITIES) {
-          console.log(`\n🎯 Reached target of ${MAX_OPPORTUNITIES} opportunities! Stopping scan.\n`);
+          logger.success(`\n🎯 Reached target of ${MAX_OPPORTUNITIES} opportunities! Stopping scan.\n`);
           // Trim to exactly MAX_OPPORTUNITIES if we exceeded
           allOpportunities = allOpportunities.slice(0, MAX_OPPORTUNITIES);
           break;
         }
       } else {
-        console.log('  No arbitrage found in this batch.');
+        logger.info('  No arbitrage found in this batch.');
       }
 
-      console.log(`  Continuing to next batch...\n`);
+      logger.info(`  Continuing to next batch...\n`);
       offset += limit;
     }
 
     const opportunities = allOpportunities;
 
     // Display results
-    console.log('═'.repeat(70));
-    console.log('SENTIMENTAL ARBITRAGE SCAN COMPLETE');
-    console.log('═'.repeat(70));
-    console.log(`Total Events Scanned: ${totalScanned}`);
-    console.log(`Total Arbitrage Opportunities Found: ${opportunities.length}\n`);
+    logger.header('═'.repeat(70));
+    logger.header('SENTIMENTAL ARBITRAGE SCAN COMPLETE');
+    logger.header('═'.repeat(70));
+    logger.info(`Total Events Scanned: ${totalScanned}`);
+    logger.info(`Total Arbitrage Opportunities Found: ${opportunities.length}\n`);
 
     if (opportunities.length > 0) {
       // Display opportunities in table format
-      console.log('┌────────────────────────────────────────────────────────────────────┐');
-      console.log('│                  ARBITRAGE OPPORTUNITIES                           │');
-      console.log('└────────────────────────────────────────────────────────────────────┘\n');
+      logger.header('┌────────────────────────────────────────────────────────────────────┐');
+      logger.header('│                  ARBITRAGE OPPORTUNITIES                           │');
+      logger.header('└────────────────────────────────────────────────────────────────────┘\n');
 
       opportunities.forEach((opportunity, index) => {
-        console.log(`${index + 1}. ARBITRAGE STRATEGY`);
-        console.log('─'.repeat(70));
-        console.log(`Strategy: ${opportunity.arbitrageSummary}`);
-        console.log('');
-        console.log('Markets to bet on:');
-        console.log('─'.repeat(70));
+        logger.highlight(`${index + 1}. ARBITRAGE STRATEGY`);
+        logger.log('─'.repeat(70));
+        logger.info(`Strategy: ${opportunity.arbitrageSummary}`);
+        logger.log('');
+        logger.log('Markets to bet on:');
+        logger.log('─'.repeat(70));
 
         // Create table header
         const maxQuestionLength = Math.max(...opportunity.events.map((e) => e.question.length), 20);
         const questionCol = maxQuestionLength + 2;
 
-        console.log(`${'Question'.padEnd(questionCol)} | ${'Market ID'.padEnd(15)}`);
-        console.log('─'.repeat(questionCol + 20));
+        logger.log(`${'Question'.padEnd(questionCol)} | ${'Market ID'.padEnd(15)}`);
+        logger.log('─'.repeat(questionCol + 20));
 
         // Display each market
         opportunity.events.forEach((event) => {
@@ -160,29 +161,29 @@ export const findSentimentalArbitrage = async (): Promise<void> => {
               ? event.question.substring(0, questionCol - 5) + '...'
               : event.question;
 
-          console.log(`${question.padEnd(questionCol)} | ${event.id.toString().padEnd(15)}`);
+          logger.log(`${question.padEnd(questionCol)} | ${event.id.toString().padEnd(15)}`);
         });
 
-        console.log('');
+        logger.log('');
 
         // Get full event details for URL
         const eventIds = opportunity.events.map((e) => e.id);
         const fullEvents = scannedEvents.filter((event) => eventIds.includes(event.id));
 
         if (fullEvents.length > 0) {
-          console.log('Event URLs:');
+          logger.info('Event URLs:');
           fullEvents.forEach((event) => {
-            console.log(`  • https://polymarket.com/event/${event.slug}`);
+            logger.info(`  • https://polymarket.com/event/${event.slug}`);
           });
         }
 
-        console.log('\n');
+        logger.log('\n');
       });
     } else {
-      console.log('No sentimental arbitrage opportunities found.\n');
+      logger.warn('No sentimental arbitrage opportunities found.\n');
     }
   } catch (error) {
-    console.error('Error in sentimental arbitrage scan:', error);
+    logger.error('Error in sentimental arbitrage scan:', error);
     throw error;
   }
 };

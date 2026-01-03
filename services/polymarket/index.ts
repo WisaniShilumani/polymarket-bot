@@ -1,6 +1,7 @@
 import { ClobClient, Side } from '@polymarket/clob-client';
 import { Wallet } from '@ethersproject/wallet';
 import type { GetMarketsOptions, PolymarketEvent, PolymarketMarket } from '../../common/types';
+import logger from '../../utils/logger';
 
 const host = 'https://clob.polymarket.com';
 const funder = process.env.POLYMARKET_FUNDER; //This is the address listed below your profile picture when using the Polymarket site.
@@ -43,7 +44,7 @@ export const createOrder = async (params: OrderParams): Promise<OrderResult> => 
       side,
     });
 
-    console.log(
+    logger.success(
       `  📝 Order placed: ${params.side} ${params.size} shares @ $${params.price} - Order ID: ${response.orderID}`,
     );
 
@@ -53,7 +54,7 @@ export const createOrder = async (params: OrderParams): Promise<OrderResult> => 
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`  ❌ Order failed: ${errorMessage}`);
+    logger.error(`  ❌ Order failed: ${errorMessage}`);
     return {
       success: false,
       error: errorMessage,
@@ -77,7 +78,7 @@ export interface ArbitrageOrderParams {
 export const createArbitrageOrders = async (params: ArbitrageOrderParams): Promise<OrderResult[]> => {
   const results: OrderResult[] = [];
 
-  console.log(
+  logger.info(
     `\n🚀 Placing ${params.side} orders on ${params.markets.length} markets (${params.sharesPerMarket} shares each)...`,
   );
 
@@ -92,12 +93,12 @@ export const createArbitrageOrders = async (params: ArbitrageOrderParams): Promi
     results.push(result);
 
     if (!result.success) {
-      console.error(`  ⚠️ Failed to place order for: ${market.question}`);
+      logger.warn(`  ⚠️ Failed to place order for: ${market.question}`);
     }
   }
 
   const successCount = results.filter((r) => r.success).length;
-  console.log(`\n📊 Orders completed: ${successCount}/${params.markets.length} successful`);
+  logger.info(`\n📊 Orders completed: ${successCount}/${params.markets.length} successful`);
 
   return results;
 };
@@ -123,7 +124,7 @@ export const getMarketsFromRest = async (options: GetMarketsOptions = {}): Promi
     exclude_sports = true,
   } = options;
 
-  console.log({ limit, offset, closed });
+  logger.debug({ limit, offset, closed });
 
   const params = new URLSearchParams({
     limit: limit.toString(),
@@ -147,7 +148,7 @@ export const getMarketsFromRest = async (options: GetMarketsOptions = {}): Promi
     params.append('start_date_max', start_date_max);
   }
 
-  console.log(params);
+  logger.debug(params);
 
   const url = `${POLYMARKET_API_URL}/markets?${params.toString()}`;
 
@@ -179,7 +180,7 @@ export const getMarketsFromRest = async (options: GetMarketsOptions = {}): Promi
 
     return markets;
   } catch (error) {
-    console.error('Error fetching markets from Polymarket API:', error);
+    logger.error('Error fetching markets from Polymarket API:', error);
     throw error;
   }
 };
@@ -205,7 +206,7 @@ export const getMarketsByIds = async (marketIds: string[]): Promise<PolymarketMa
     const markets: PolymarketMarket[] = await response.json();
     return markets;
   } catch (error) {
-    console.error('Error fetching markets by IDs:', error);
+    logger.error('Error fetching markets by IDs:', error);
     throw error;
   }
 };
@@ -216,6 +217,7 @@ interface GetEventsOptions {
   closed?: boolean;
   exclude_sports?: boolean;
   end_date_min?: string;
+  start_date_min?: string;
 }
 
 /**
@@ -226,7 +228,8 @@ interface GetEventsOptions {
 export const getEventsFromRest = async (options: GetEventsOptions = {}): Promise<PolymarketEvent[]> => {
   // Default to today's date in ISO format for end_date_min filter
   const today = new Date().toISOString();
-  const { limit = 100, offset = 0, closed = false, end_date_min = today } = options;
+  const oneMonthAgo = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString();
+  const { limit = 100, offset = 0, closed = false, end_date_min = today, start_date_min = oneMonthAgo } = options;
 
   const params = new URLSearchParams({
     limit: limit.toString(),
@@ -237,6 +240,10 @@ export const getEventsFromRest = async (options: GetEventsOptions = {}): Promise
   // Add end_date_min parameter to fetch only events with end date greater than today
   if (end_date_min) {
     params.append('end_date_min', end_date_min);
+  }
+
+  if (start_date_min) {
+    params.append('start_date_min', start_date_min);
   }
 
   const url = `${POLYMARKET_API_URL}/events?${params.toString()}`;
@@ -251,7 +258,7 @@ export const getEventsFromRest = async (options: GetEventsOptions = {}): Promise
     const events: PolymarketEvent[] = await response.json();
     return events;
   } catch (error) {
-    console.error('Error fetching events from Polymarket API:', error);
+    logger.error('Error fetching events from Polymarket API:', error);
     throw error;
   }
 };
