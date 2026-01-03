@@ -19,7 +19,7 @@ export function checkMutuallyExclusiveArbitrage(positions: Position[], marketIds
   const worstCaseProfit = minPayout - cost;
 
   return {
-    isArbitrage: worstCaseProfit > 0,
+    isArbitrage: worstCaseProfit > 0.01,
     worstCaseProfit,
     cost,
     minPayout,

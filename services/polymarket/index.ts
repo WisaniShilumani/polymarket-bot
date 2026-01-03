@@ -5,14 +5,13 @@ import type { GetMarketsOptions, PolymarketEvent, PolymarketMarket } from '../..
 const host = 'https://clob.polymarket.com';
 const funder = process.env.POLYMARKET_FUNDER; //This is the address listed below your profile picture when using the Polymarket site.
 const signer = new Wallet(process.env.POLYMARKET_PRIVATE_KEY!);
-const creds = new ClobClient(host, 137, signer).createOrDeriveApiKey();
-
 const signatureType = 1;
 
 /**
  * Gets an initialized CLOB client for trading
  */
 export const getClobClient = async (): Promise<ClobClient> => {
+  const creds = new ClobClient(host, 137, signer).createOrDeriveApiKey();
   return new ClobClient(host, 137, signer, await creds, signatureType, funder);
 };
 
@@ -104,29 +103,6 @@ export const createArbitrageOrders = async (params: ArbitrageOrderParams): Promi
 };
 
 const POLYMARKET_API_URL = 'https://gamma-api.polymarket.com';
-
-export const getMarkets = async () => {
-  const clobClient = new ClobClient(host, 137, signer, await creds, signatureType, funder);
-  const markets = await clobClient.getMarkets();
-
-  // Filter for active markets that are accepting orders
-  const activeMarkets = {
-    ...markets,
-    data: markets.data.filter((market: any) => {
-      // Market must be active (explicitly true or undefined, but not false)
-      const isActive = market.active !== false;
-      // Market must not be closed
-      const isNotClosed = market.closed !== true;
-      // Market state should be OPEN or ACTIVE (or undefined, which we'll treat as open)
-      const isOpenState = !market.state || market.state === 'OPEN' || market.state === 'ACTIVE';
-      // Market should be accepting orders (explicitly true or undefined, but not false)
-      const acceptsOrders = market.acceptingOrders !== false;
-
-      return isActive && isNotClosed && isOpenState && acceptsOrders;
-    }),
-  };
-  return activeMarkets;
-};
 
 /**
  * Fetches markets from Polymarket REST API

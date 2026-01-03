@@ -12,6 +12,7 @@ const openai = new OpenAI({
  * @returns true if the bets are mutually exclusive, false otherwise
  */
 export const areBetsMutuallyExclusive = async (bets: string): Promise<boolean> => {
+  console.log('Checking if bets are mutually exclusive:');
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     messages: [

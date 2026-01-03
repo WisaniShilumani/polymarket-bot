@@ -10,7 +10,7 @@ import * as path from 'path';
 const ORDERS_FILE_PATH = path.join(process.cwd(), 'ORDERS.txt');
 
 const MAX_OPPORTUNITIES = 50;
-const MIN_LIQUIDITY = 10_000;
+const MIN_LIQUIDITY = 50_000;
 
 /**
  * Reads event IDs from the ORDERS.txt file
@@ -450,7 +450,7 @@ const scanMarketsForSimpleArbitrage = async (
 // MAIN FUNCTION
 // ============================================================================
 
-export const findAndAnalyzeArbitrage = async (): Promise<void> => {
+export const findAndAnalyzeArbitrage = async (): Promise<boolean> => {
   console.log('\n\n');
   console.log('╔════════════════════════════════════════════════════════════════╗');
   console.log('║           POLYMARKET ARBITRAGE DETECTION BOT                   ║');
@@ -460,4 +460,7 @@ export const findAndAnalyzeArbitrage = async (): Promise<void> => {
   // displayEventRangeArbitrageResults(eventOpportunities);
   // displayMarketSimpleArbitrageResults(marketOpportunities);
   displayTopOpportunities(eventOpportunities, []);
+
+  // Return true if opportunities were found, false otherwise
+  return eventOpportunities.length > 0;
 };
