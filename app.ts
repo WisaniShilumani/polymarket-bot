@@ -4,7 +4,7 @@ import { displayMarketSimpleArbitrageResults } from './services/arbitrage/logger
 import { scanMarketsForSimpleArbitrage } from './services/arbitrage/market-simple-opportunities';
 import { getAccountCollateralBalance } from './services/polymarket/account-balance';
 
-logger.info('Starting Polymarket Arbitrage Detection Bot...');
+logger.info('Starting Polymarket Arbitrage Detection Bot');
 
 async function main() {
   let opportunitiesFound = false;
