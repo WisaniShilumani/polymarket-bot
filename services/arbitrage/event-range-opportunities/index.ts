@@ -5,7 +5,7 @@ import { rangeArbitrage } from '../../../utils/math/range-arbitrage';
 import { areBetsMutuallyExclusive } from '../../openai';
 import { getEventsFromRest } from '../../polymarket/events';
 import { executeArbitrageOrders } from '../order-execution';
-import { calculateNormalizedShares } from './utils';
+import { calculateNormalizedShares, isObviousMutuallyExclusive } from './utils';
 import { getTrades } from '../../polymarket/trade-history';
 import { getOpenOrders } from '../../polymarket/orders';
 
@@ -37,7 +37,9 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
   const hasArbitrage = result.arbitrageBundles.some((bundle) => bundle.isArbitrage);
   if (!hasArbitrage) return null;
   const betsDescription = '## Title - ' + event.title + '\n' + activeMarkets.map((m, i) => `${i + 1}. ${m.question}`).join('\n');
-  const isMutuallyExclusive = await areBetsMutuallyExclusive(betsDescription, event.id);
+  const tags = event.tags?.map((t) => t.slug) || [];
+  const isObviousExclusiveCase = isObviousMutuallyExclusive(event.title, activeMarkets, tags);
+  const isMutuallyExclusive = isObviousExclusiveCase || (await areBetsMutuallyExclusive(betsDescription, event.id));
   if (!isMutuallyExclusive) return null;
   return {
     eventId: event.id,
