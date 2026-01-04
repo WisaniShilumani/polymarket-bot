@@ -78,7 +78,7 @@ export const areBetsMutuallyExclusive = async (bets: string, eventId: string): P
 
   logger.debug(`Cache miss for event ID: ${eventId}. Checking if bets are mutually exclusive:`);
   const response = await openai.chat.completions.create({
-    model: 'gpt-5-nano',
+    model: 'gpt-4.1-mini',
     messages: [
       {
         role: 'system',
@@ -109,27 +109,12 @@ A set of bets is **mutually exclusive** if **at most one bet can resolve YES**.
 ### Exhaustive
 A set of bets is **exhaustive** if **at least one bet must resolve YES** in **every possible real-world outcome**.
 
-- There must be **no possible scenario** where all bets resolve NO
-- Exhaustiveness often requires:
-  - Explicit negations (YES / NO pairs)
-  - Complete ranges
-  - Full outcome coverage
-
----
-
-### Arbitrage-Valid Set
-A set of bets is a **true arbitrage opportunity** only if it is:
-
-**Mutually exclusive AND exhaustive**
-
-If either condition fails, the set is **not arbitrage-safe**.
-
 ---
 
 ## ANALYSIS PROCEDURE (FOLLOW IN ORDER)
 
 ### Step 1: Normalize the Bets
-For each bet, identify and restate clearly:
+For each bet, identify and restate clearly along with the title:
 - **Subject** (event, asset, person, outcome)
 - **Condition** (win, threshold, action, measurement)
 - **Time boundary** (date, deadline, period)

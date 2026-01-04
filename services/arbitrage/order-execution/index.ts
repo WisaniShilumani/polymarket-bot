@@ -10,8 +10,9 @@ import { createArbitrageOrders } from '../../polymarket/orders';
  * Determines whether to buy YES or NO on all markets based on which strategy is profitable
  * Returns true if orders were actually placed, false otherwise
  */
-export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunity): Promise<boolean> => {
+export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunity, totalOpenOrderValue: number): Promise<boolean> => {
   const collateralBalance = await getAccountCollateralBalance();
+  const availableCollateral = collateralBalance - totalOpenOrderValue;
   const { eventData, result } = opportunity;
   const activeMarkets = eventData.markets.filter((m) => !m.closed);
 
@@ -38,7 +39,7 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
   }
 
   // Check maximum order cost
-  const maxOrderCost = Math.min(MAX_ORDER_COST, collateralBalance);
+  const maxOrderCost = Math.min(MAX_ORDER_COST, availableCollateral);
   if (orderCost > maxOrderCost) {
     logger.warn(`  ⚠️ Total order cost ${formatCurrency(orderCost)} exceeds maximum of ${formatCurrency(maxOrderCost)}, skipping order creation`);
     return false;

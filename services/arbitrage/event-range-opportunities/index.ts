@@ -35,7 +35,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
   const result = rangeArbitrage(marketsForAnalysis, 1);
   const hasArbitrage = result.arbitrageBundles.some((bundle) => bundle.isArbitrage);
   if (!hasArbitrage) return null;
-  const betsDescription = '## ' + event.title + '\n' + activeMarkets.map((m, i) => `${i + 1}. ${m.question}`).join('\n');
+  const betsDescription = '## Title - ' + event.title + '\n' + activeMarkets.map((m, i) => `${i + 1}. ${m.question}`).join('\n');
   const isMutuallyExclusive = await areBetsMutuallyExclusive(betsDescription, event.id);
   if (!isMutuallyExclusive) return null;
   return {
@@ -80,6 +80,7 @@ export const scanEventsForRangeArbitrage = async (
       const [events, trades, openOrders] = await Promise.all([getEventsFromRest({ offset, limit, closed: false }), getTrades(), getOpenOrders()]);
       const tradeMarketIds = trades.map((t) => t.market);
       const openOrderMarketIds = openOrders.map((o) => o.market);
+      const totalOpenOrderValue = openOrders.reduce((sum, o) => sum + parseFloat(o.price) * parseFloat(o.original_size), 0);
       const existingMarketIds = new Set([...tradeMarketIds, ...openOrderMarketIds]);
       if (events.length === 0) {
         logger.info('No more events to scan.');
@@ -99,7 +100,7 @@ export const scanEventsForRangeArbitrage = async (
           opportunities.push(opportunity);
           foundInBatch++;
           logger.success(`  ✅ Found: [${opportunity.eventId}] ${opportunity.eventTitle} - ${opportunity.markets.length} markets`);
-          const orderPlaced = await executeArbitrageOrders(opportunity);
+          const orderPlaced = await executeArbitrageOrders(opportunity, totalOpenOrderValue);
           if (orderPlaced) {
             logger.success(`\n✅ Orders placed successfully! Stopping scan.\n`);
             return { opportunities, ordersPlaced: true };
