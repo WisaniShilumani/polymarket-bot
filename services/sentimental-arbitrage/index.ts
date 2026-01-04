@@ -3,6 +3,7 @@ import type { PolymarketEvent } from '../../common/types';
 import logger from '../../utils/logger';
 import { http } from '../../utils/http';
 import { ARBITRAGE_DETECTION_BOT_URL } from '../../config';
+import { hasArbitrageEvents, type IArbitrageOpportunity } from '../openai/arbitrage-opportunity';
 
 const BATCH_SIZE = 500;
 
@@ -24,6 +25,12 @@ interface IOpportunity {
 interface SentimentalArbitrageResponse {
   output: IOpportunity[];
 }
+
+const createEventPayloads = (events: PolymarketEvent[]): EventPayload[] =>
+  events.map((event) => ({
+    id: event.id,
+    title: event.title,
+  }));
 
 /**
  * Sends events to the sentimental arbitrage detection API in batches
@@ -51,6 +58,19 @@ const sendEventsForArbitrageDetection = async (events: EventPayload[]): Promise<
   }
 };
 
+const whitelistedTags = ['politics', 'sports', 'economy', 'tech', 'world', 'economy', 'elections', 'finance', 'geopolitics', 'crypto'];
+const groupEventsByTag = (events: PolymarketEvent[]): { [key: string]: PolymarketEvent[] } => {
+  return events.reduce((acc, event) => {
+    if (!event.tags?.length) return acc;
+    event.tags.forEach((tag) => {
+      if (!whitelistedTags.includes(tag.slug)) return;
+      acc[tag.slug] = acc[tag.slug] || [];
+      acc[tag.slug]?.push(event);
+    });
+    return acc;
+  }, {} as { [key: string]: PolymarketEvent[] });
+};
+
 /**
  * Main function to scan for sentimental arbitrage opportunities
  * Fetches 500 events at a time, sends to API, and continues until 20 opportunities are found
@@ -65,7 +85,7 @@ export const findSentimentalArbitrage = async (): Promise<void> => {
     const limit = BATCH_SIZE; // Fetch 500 events at a time
     const MAX_OPPORTUNITIES = 20;
     let totalScanned = 0;
-    let allOpportunities: IOpportunity[] = [];
+    let allOpportunities: IArbitrageOpportunity[] = [];
     let scannedEvents: PolymarketEvent[] = [];
 
     logger.info(`Fetching events from Polymarket and checking for arbitrage (target: ${MAX_OPPORTUNITIES} opportunities)...\n`);
@@ -73,44 +93,33 @@ export const findSentimentalArbitrage = async (): Promise<void> => {
     // Keep fetching and checking until we find 20 opportunities or run out of events
     while (allOpportunities.length < MAX_OPPORTUNITIES) {
       logger.progress(`Fetching events ${offset} to ${offset + limit}...`);
-
       const events = await getEventsFromRest({ offset, limit, closed: false });
-
       if (events.length === 0) {
         logger.info('No more events to fetch.\n');
         break;
       }
 
-      totalScanned += events.length;
-      scannedEvents.push(...events);
-
-      // Prepare event payloads (only id and title)
-      const eventPayloads: EventPayload[] = events.map((event) => ({
-        id: event.id,
-        title: event.title,
-      }));
-
-      logger.info(`  Sending ${eventPayloads.length} events to sentimental arbitrage detector...`);
-
-      // Send to API and check for arbitrage
-      const batchOpportunities = await sendEventsForArbitrageDetection(eventPayloads);
-
-      // Add found opportunities to our collection
-      if (batchOpportunities.length > 0) {
-        allOpportunities.push(...batchOpportunities);
-        logger.success(`  ✅ Found ${batchOpportunities.length} opportunities in this batch! Total: ${allOpportunities.length}/${MAX_OPPORTUNITIES}`);
-
-        // If we've reached our target, stop
-        if (allOpportunities.length >= MAX_OPPORTUNITIES) {
-          logger.success(`\n🎯 Reached target of ${MAX_OPPORTUNITIES} opportunities! Stopping scan.\n`);
-          // Trim to exactly MAX_OPPORTUNITIES if we exceeded
-          allOpportunities = allOpportunities.slice(0, MAX_OPPORTUNITIES);
-          break;
+      const eventsGroupedByTag = groupEventsByTag(events);
+      for (const tag in eventsGroupedByTag) {
+        const tagEvents = eventsGroupedByTag[tag];
+        if (!tagEvents?.length || tagEvents.length < 2) continue;
+        const eventPayloads: EventPayload[] = createEventPayloads(tagEvents);
+        const batchOpportunities = await hasArbitrageEvents(JSON.stringify(eventPayloads, null, 2), tag + '-' + tagEvents[0]?.id);
+        if (batchOpportunities.length > 0) {
+          console.log(JSON.stringify(batchOpportunities, null, 2));
+          allOpportunities.push(...batchOpportunities);
+          logger.success(`  ✅ Found ${batchOpportunities.length} opportunities in this batch! Total: ${allOpportunities.length}/${MAX_OPPORTUNITIES}`);
+          if (allOpportunities.length >= MAX_OPPORTUNITIES) {
+            logger.success(`\n🎯 Reached target of ${MAX_OPPORTUNITIES} opportunities! Stopping scan.\n`);
+            break;
+          }
+        } else {
+          logger.info('  No arbitrage found in this batch.');
         }
-      } else {
-        logger.info('  No arbitrage found in this batch.');
       }
 
+      totalScanned += events.length;
+      scannedEvents.push(...events);
       logger.info(`  Continuing to next batch...\n`);
       offset += limit;
     }
@@ -139,7 +148,7 @@ export const findSentimentalArbitrage = async (): Promise<void> => {
         logger.log('─'.repeat(70));
 
         // Create table header
-        const maxQuestionLength = Math.max(...opportunity.events.map((e) => e.question.length), 20);
+        const maxQuestionLength = Math.max(...opportunity.events.map((e) => e.title.length), 20);
         const questionCol = maxQuestionLength + 2;
 
         logger.log(`${'Question'.padEnd(questionCol)} | ${'Market ID'.padEnd(15)}`);
@@ -147,15 +156,16 @@ export const findSentimentalArbitrage = async (): Promise<void> => {
 
         // Display each market
         opportunity.events.forEach((event) => {
-          const question = event.question.length > questionCol - 2 ? event.question.substring(0, questionCol - 5) + '...' : event.question;
+          const question = event.title.length > questionCol - 2 ? event.title.substring(0, questionCol - 5) + '...' : event.title;
+          const eventId = typeof event.id === 'string' ? event.id : event.id.toString();
 
-          logger.log(`${question.padEnd(questionCol)} | ${event.id.toString().padEnd(15)}`);
+          logger.log(`${question.padEnd(questionCol)} | ${eventId.padEnd(15)}`);
         });
 
         logger.log('');
 
         // Get full event details for URL
-        const eventIds = opportunity.events.map((e) => e.id);
+        const eventIds = opportunity.events.map((e) => (typeof e.id === 'string' ? e.id : e.id.toString()));
         const fullEvents = scannedEvents.filter((event) => eventIds.includes(event.id));
 
         if (fullEvents.length > 0) {

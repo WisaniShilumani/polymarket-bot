@@ -51,7 +51,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: af-south-1
 
       - name: Install EB CLI
         run: |
@@ -60,10 +60,10 @@ jobs:
 
       - name: Deploy to Elastic Beanstalk
         run: |
-          eb deploy --region eu-west-2
+          eb deploy --region af-south-1
 
       - name: Get deployment URL
         run: |
-          EB_URL=$(eb status --region eu-west-2 --output json | jq -r '.Environment.CNAME')
+          EB_URL=$(eb status --region af-south-1 --output json | jq -r '.Environment.CNAME')
           echo "Deployment URL: http://$EB_URL"
           echo "EB_URL=http://$EB_URL" >> $GITHUB_ENV

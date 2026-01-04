@@ -102,7 +102,6 @@ export const scanMarketsForSimpleArbitrage = async (
         }
       }
 
-      logger.info(`  Found ${foundInBatch} opportunities in this batch\n`);
       offset += limit;
     } catch (error) {
       logger.error('Error scanning markets:', error);

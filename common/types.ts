@@ -60,6 +60,10 @@ export interface PolymarketMarket {
   spread: number;
 }
 
+interface Tag {
+  slug: string;
+}
+
 export interface PolymarketEvent {
   id: string;
   ticker: string;
@@ -78,7 +82,7 @@ export interface PolymarketEvent {
   volume?: string;
   liquidity?: string;
   series?: any[];
-  tags?: any[];
+  tags?: Tag[];
 }
 
 export interface GetMarketsOptions {

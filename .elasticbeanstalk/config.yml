@@ -8,7 +8,7 @@ global:
   branch: null
   default_ec2_keyname: null
   default_platform: Node.js 22
-  default_region: eu-west-2
+  default_region: af-south-1
   include_git_submodules: true
   instance_profile: null
   platform_name: null
