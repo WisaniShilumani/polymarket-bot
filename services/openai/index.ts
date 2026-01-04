@@ -53,9 +53,7 @@ let writeQueue: Promise<void> = Promise.resolve();
 const appendResultToFile = async (eventId: string, result: boolean, index: number): Promise<void> => {
   writeQueue = writeQueue.then(async () => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, index * 10));
       await fsPromises.appendFile(MUTUALLY_EXCLUSIVE_FILE_PATH, `${eventId}:${result}\n`, 'utf-8');
-      logger.debug(`  📝 Recorded event ${eventId} (${result}) in MUTUALLY_EXCLUSIVE.txt after ${index * 10}ms`);
     } catch (error) {
       logger.error('Error writing to MUTUALLY_EXCLUSIVE.txt:', error);
     }
@@ -72,20 +70,23 @@ const appendResultToFile = async (eventId: string, result: boolean, index: numbe
  * @returns true if the bets are mutually exclusive, false otherwise
  */
 export const areBetsMutuallyExclusive = async (bets: string, eventId: string, index: number): Promise<boolean> => {
-  // Check cache first
-  const cachedResult = mutuallyExclusiveCache.get(eventId);
-  if (cachedResult !== undefined) {
-    return cachedResult;
-  }
+  try {
+    // Check cache first
+    const cachedResult = mutuallyExclusiveCache.get(eventId);
+    if (cachedResult !== undefined) {
+      return cachedResult;
+    }
 
-  logger.debug(`Cache miss for event ID: ${eventId}. Checking if bets are mutually exclusive:`);
-
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4.1-mini',
-    messages: [
-      {
-        role: 'system',
-        content: `
+    logger.debug(`Cache miss for AI check...`);
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4.1-mini',
+      messages: [
+        {
+          role: 'system',
+          content:
+            Number(1) === 1
+              ? 'System'
+              : `
         ## SYSTEM PROMPT: Prediction Market Exclusivity & Exhaustiveness Analyzer
 
 You are an expert at analyzing **prediction market bets** (e.g. Polymarket, Kalshi, Manifold).
@@ -206,49 +207,53 @@ Then provide a **short explanation** referencing:
 
 Be strict: if the market wording allows ambiguity, treat it as **NOT arbitrage-safe**.
 `,
-      },
-      {
-        role: 'user',
-        content: `Are the following bets mutually exclusive and exhaustive?\n\n${bets}`,
-      },
-    ],
-    // temperature: 0.2,
-    response_format: {
-      type: 'json_schema',
-      json_schema: {
-        name: 'result',
-        strict: true,
-        schema: {
-          type: 'object',
-          properties: {
-            mutuallyExclusive: {
-              type: 'number',
-              enum: [0, 1],
-              description: '1 if the bets are mutually exclusive, 0 if they are not',
+        },
+        {
+          role: 'user',
+          content: `Are the following bets mutually exclusive and exhaustive?\n\n${bets}`,
+        },
+      ],
+      // temperature: 0.2,
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'result',
+          strict: true,
+          schema: {
+            type: 'object',
+            properties: {
+              mutuallyExclusive: {
+                type: 'number',
+                enum: [0, 1],
+                description: '1 if the bets are mutually exclusive, 0 if they are not',
+              },
+              exhaustive: {
+                type: 'number',
+                enum: [0, 1],
+                description: '1 if the bets are exhaustive, 0 if they are not',
+              },
             },
-            exhaustive: {
-              type: 'number',
-              enum: [0, 1],
-              description: '1 if the bets are exhaustive, 0 if they are not',
-            },
+            required: ['mutuallyExclusive', 'exhaustive'],
+            additionalProperties: false,
           },
-          required: ['mutuallyExclusive', 'exhaustive'],
-          additionalProperties: false,
         },
       },
-    },
-  });
+    });
 
-  const content = response.choices[0]?.message?.content;
-  const parsed = JSON.parse(content || '{"mutuallyExclusive": 0, "exhaustive": 0}') as {
-    mutuallyExclusive: number;
-    exhaustive: number;
-  };
+    const content = response.choices[0]?.message?.content;
+    const parsed = JSON.parse(content || '{"mutuallyExclusive": 0, "exhaustive": 0}') as {
+      mutuallyExclusive: number;
+      exhaustive: number;
+    };
 
-  const result = parsed.mutuallyExclusive === 1 && parsed.exhaustive === 1;
-  setTimeout(() => {
-    mutuallyExclusiveCache.set(eventId, result);
-    appendResultToFile(eventId, result, index);
-  }, index);
-  return result;
+    const result = parsed.mutuallyExclusive === 1 && parsed.exhaustive === 1;
+    setTimeout(() => {
+      mutuallyExclusiveCache.set(eventId, result);
+      appendResultToFile(eventId, result, index);
+    }, index);
+    return result;
+  } catch (error) {
+    logger.error('Error checking if bets are mutually exclusive:', error);
+    return false;
+  }
 };

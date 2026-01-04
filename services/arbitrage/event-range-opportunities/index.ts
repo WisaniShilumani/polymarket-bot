@@ -93,14 +93,21 @@ export const scanEventsForRangeArbitrage = async (
       }
 
       let foundInBatch = 0;
-      const getOpportunities = events.map(async (event, index) => {
-        const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
-        if (hasTrade) return null;
-        const opportunity = await checkEventForRangeArbitrage(event, index);
-        return opportunity;
-      });
+      const opportunities: (EventRangeArbitrageOpportunity | null)[] = [];
+      const BATCH_SIZE = 5;
+      for (let i = 0; i < events.length; i += BATCH_SIZE) {
+        const batch = events.slice(i, i + BATCH_SIZE);
+        const batchPromises = batch.map(async (event, batchIndex) => {
+          const index = i + batchIndex;
+          const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
+          if (hasTrade) return null;
+          const opportunity = await checkEventForRangeArbitrage(event, index);
+          return opportunity;
+        });
+        const batchResults = await Promise.all(batchPromises);
+        opportunities.push(...batchResults);
+      }
 
-      const opportunities = await Promise.all(getOpportunities);
       const sortedOpportunities = opportunities
         .filter((o) => !!o)
         .sort((a, b) => b?.result.arbitrageBundles[0]?.worstCaseProfit - a?.result.arbitrageBundles[0]?.worstCaseProfit);
