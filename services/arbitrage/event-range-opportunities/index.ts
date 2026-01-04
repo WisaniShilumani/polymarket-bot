@@ -91,19 +91,23 @@ export const scanEventsForRangeArbitrage = async (
       }
 
       let foundInBatch = 0;
-
-      for (const event of events) {
+      const getOpportunities = events.map(async (event) => {
         const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
-        if (hasTrade) continue;
+        if (hasTrade) return null;
         const opportunity = await checkEventForRangeArbitrage(event);
         const hasGoodSpreads = opportunity?.markets.every((m) => m.spread <= MAX_SPREAD);
-        if (opportunity && hasGoodSpreads) {
-          opportunities.push(opportunity);
-          foundInBatch++;
-          logger.success(`  ✅ Found: [${opportunity.eventId}] ${opportunity.eventTitle} - ${opportunity.markets.length} markets`);
-          const orderPlaced = await executeArbitrageOrders(opportunity, totalOpenOrderValue);
-          if (orderPlaced) ordersPlaced = true;
-        }
+        if (!opportunity || !hasGoodSpreads) return null;
+        return opportunity;
+      });
+
+      const opportunities = await Promise.all(getOpportunities);
+      for (const opportunity of opportunities) {
+        if (!opportunity) continue;
+        opportunities.push(opportunity);
+        foundInBatch++;
+        logger.success(`  ✅ Found: [${opportunity.eventId}] ${opportunity.eventTitle} - ${opportunity.markets.length} markets`);
+        const orderPlaced = await executeArbitrageOrders(opportunity, totalOpenOrderValue);
+        if (orderPlaced) ordersPlaced = true;
       }
 
       offset += limit;
