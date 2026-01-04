@@ -5,8 +5,9 @@ import { LRUCache } from 'lru-cache';
 import { POLYMARKET_FUNDER } from '../../../config';
 
 const balanceCache = new LRUCache<string, number>({
-  max: 2,
-  ttl: 1000,
+  max: 1,
+  ttl: 100,
+  allowStale: false,
 });
 
 /**
