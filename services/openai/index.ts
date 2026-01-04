@@ -50,8 +50,13 @@ const loadCacheFromFile = (): void => {
  */
 const appendResultToFile = (eventId: string, result: boolean): void => {
   try {
-    fs.appendFileSync(MUTUALLY_EXCLUSIVE_FILE_PATH, `${eventId}:${result}\n`, 'utf-8');
-    logger.debug(`  📝 Recorded event ${eventId} (${result}) in MUTUALLY_EXCLUSIVE.txt`);
+    fs.appendFile(MUTUALLY_EXCLUSIVE_FILE_PATH, `${eventId}:${result}\n`, 'utf-8', (err) => {
+      if (err) {
+        logger.error('Error writing to MUTUALLY_EXCLUSIVE.txt:', err);
+      } else {
+        logger.debug(`  📝 Recorded event ${eventId} (${result}) in MUTUALLY_EXCLUSIVE.txt`);
+      }
+    });
   } catch (error) {
     logger.error('Error writing to MUTUALLY_EXCLUSIVE.txt:', error);
   }
