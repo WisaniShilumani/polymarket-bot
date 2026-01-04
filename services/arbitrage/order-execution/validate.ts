@@ -15,17 +15,17 @@ export const validateOrder = (
   const daysToExpiry = activeMarkets[0]?.endDate ? Math.abs(differenceInDays(new Date(activeMarkets[0].endDate), new Date())) : 7;
   const minimumProfit = +(MIN_PROFIT_THRESHOLD * Math.min(daysToExpiry, 3)).toFixed(4); // accept bets with decent returns after 4 days
   if (!selectedBundle || selectedBundle.worstCaseProfit < minimumProfit) {
-    logger.warn(
-      `  ⚠️ [${eventId}] Profit ${formatCurrency(selectedBundle?.worstCaseProfit ?? 0)} is below minimum threshold of ${formatCurrency(
-        minimumProfit,
-      )}, skipping order creation`,
-    );
+    // logger.warn(
+    //   `  ⚠️ [${eventId}] Profit ${formatCurrency(selectedBundle?.worstCaseProfit ?? 0)} is below minimum threshold of ${formatCurrency(
+    //     minimumProfit,
+    //   )}, skipping order creation`,
+    // );
     return false;
   }
 
   const maxOrderCost = Math.min(MAX_ORDER_COST, availableCollateral);
   if (orderCost > maxOrderCost) {
-    logger.warn(`  ⚠️ [${eventId}] Total order cost ${formatCurrency(orderCost)} exceeds maximum of ${formatCurrency(maxOrderCost)}, skipping order creation`);
+    // logger.warn(`  ⚠️ [${eventId}] Total order cost ${formatCurrency(orderCost)} exceeds maximum of ${formatCurrency(maxOrderCost)}, skipping order creation`);
     return false;
   }
 

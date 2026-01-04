@@ -22,7 +22,6 @@ export const isObviousMutuallyExclusive = (eventTitle: string, markets: Polymark
   const isSportsMatch = tags.includes('sports');
   if (isSoccerMatch && (eventTitle.includes(' vs. ') || eventTitle.includes(' vs '))) {
     if (markets.length === 3) {
-      logger.info(`Checking if event title is mutually exclusive for soccer match`);
       const [market1, market2, market3] = markets;
       if (!market1?.question || !market2?.question || !market3?.question) return false;
       const isFirstMarketWinString = winRegexPattern.test(market1.question);
@@ -34,7 +33,6 @@ export const isObviousMutuallyExclusive = (eventTitle: string, markets: Polymark
 
   const isOtherSportsMatch = isSportsMatch && !isSoccerMatch;
   if (isOtherSportsMatch && winnerTitlePattern.test(eventTitle)) {
-    logger.info(`Checking if event title is mutually exclusive for other sports match`);
     if (markets.length === 2) {
       const [market1, market2] = markets;
       if (!market1?.question || !market2?.question) return false;

@@ -121,7 +121,6 @@ export const executeArbitrageOrders = async (
   let resultantOpportunity = opportunity;
   const canFillAll = depthResults.every((r) => r.depthCheck.canFill);
   if (!canFillAll) {
-    logger.warn(`\n💰 [${opportunity.eventId}] Not all markets can be filled, skipping order execution`);
     return defaultResult;
     // TEMP disabled, creating too many requests
     // const hasLiquidity = depthResults.every((r) => r.depthCheck.totalAvailable >= result.normalizedShares);
