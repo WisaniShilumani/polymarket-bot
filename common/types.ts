@@ -5,6 +5,7 @@ export interface Market {
   question: string;
   yesPrice: number;
   spread: number;
+  slug?: string;
 }
 
 export interface Position {

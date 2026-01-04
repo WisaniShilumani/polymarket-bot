@@ -19,7 +19,7 @@ export const createOrder = async (params: OrderParams): Promise<OrderResult> => 
       side,
     });
 
-    logger.success(`  📝 Order placed: ${params.side} ${params.size} shares @ $${params.price} - Order ID: ${response.orderID}`);
+    logger.success(`  📝 Order placed: [${params.tokenId}] ${params.side} ${params.size} shares @ $${params.price} - Order ID: ${response.orderID}`);
     return {
       success: true,
       orderId: response.orderID,
