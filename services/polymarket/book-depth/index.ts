@@ -1,7 +1,5 @@
 import type { Side } from '@polymarket/clob-client';
 import { getClobClient } from '..';
-import logger from '../../../utils/logger';
-import { formatCurrency } from '../../../utils/accounting';
 
 export interface OrderBookDepth {
   canFill: boolean;
@@ -10,6 +8,8 @@ export interface OrderBookDepth {
   slippagePct: number;
   totalAvailable: number;
 }
+
+const MAX_SPREAD = 0.05;
 
 /**
  * Analyzes order book to predict actual fill price
@@ -58,7 +58,7 @@ export const getOrderBookDepth = async (tokenId: string, side: Side, desiredSize
   const avgFillPrice = totalCost / desiredSize;
   const midPrice = (parseFloat(orderBook.asks[0]?.price || '0') + parseFloat(orderBook.bids[0]?.price || '0')) / 2;
   const slippagePct = midPrice !== 0 ? Math.abs(avgFillPrice - midPrice) / midPrice : 0;
-  const canFillWithAcceptablePrice = avgFillPrice <= desiredPrice + Math.min(Math.max(spread, 0.02), 0.05);
+  const canFillWithAcceptablePrice = avgFillPrice <= desiredPrice + MAX_SPREAD;
   // logger.info(`${canFillWithAcceptablePrice ? '✅' : '❌'} Price difference: ${formatCurrency(avgFillPrice - desiredPrice)} (spread: ${spread})`);
   return {
     canFill: canFillWithAcceptablePrice,

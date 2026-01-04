@@ -14,6 +14,7 @@ export interface OrderResult {
 }
 
 export interface ArbitrageOrderParams {
+  eventId: string;
   markets: Array<{
     tokenId: string;
     question: string;

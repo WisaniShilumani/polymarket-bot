@@ -103,7 +103,6 @@ export const scanEventsForRangeArbitrage = async (
         if (!opportunity) continue;
         allOpportunities.push(opportunity);
         foundInBatch++;
-        logger.success(`  ✅ Found: [${opportunity.eventId}] ${opportunity.eventTitle} - ${opportunity.markets.length} markets`);
         const orderPlaced = await executeArbitrageOrders(opportunity, totalOpenOrderValue);
         if (orderPlaced) ordersPlaced = true;
       }

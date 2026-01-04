@@ -83,13 +83,13 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
   const canFill = await Promise.all(canFillPromises);
   const canFillAll = canFill.every((c) => c);
   if (!canFillAll) {
-    logger.warn(`  ⚠️ Insufficient order book depth`);
     return false;
   }
 
   logger.money(`\n💰 Executing ${strategy} arbitrage on event: ${opportunity.eventTitle} for ${formatCurrency(orderCost)}`);
 
   const orderResults = await createArbitrageOrders({
+    eventId: opportunity.eventId,
     markets: marketsForOrders,
     side: strategy,
     sharesPerMarket: result.normalizedShares,

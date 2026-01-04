@@ -3,7 +3,11 @@ import { getClobClient } from '..';
 import logger from '../../../utils/logger';
 import type { OrderParams, OrderResult, ArbitrageOrderParams } from './types';
 import { ORDERS_ENABLED } from '../../../config';
-import { getOrderBookDepth } from '../book-depth';
+import { LRUCache } from 'lru-cache';
+
+const failedOrderEventsCache = new LRUCache<string, boolean>({
+  max: 1000,
+});
 
 /**
  * Creates and posts a single order to Polymarket
@@ -20,6 +24,7 @@ export const createOrder = async (params: OrderParams): Promise<OrderResult> => 
       side,
     });
 
+    if (!response.orderID) throw new Error('No order ID returned');
     logger.success(`  📝 Order placed: ${params.side} ${params.size} shares @ $${params.price} - Order ID: ${response.orderID}`);
     return {
       success: true,
@@ -35,10 +40,22 @@ export const createOrder = async (params: OrderParams): Promise<OrderResult> => 
   }
 };
 
+const cancelOrder = async (orderID?: string): Promise<void> => {
+  if (!orderID) return;
+  const clobClient = await getClobClient();
+  await clobClient.cancelOrder({ orderID });
+  logger.success(`  📝 Order cancelled: ${orderID}`);
+};
+
 /**
  * Creates orders for an arbitrage opportunity (buying YES or NO on all markets)
  */
 export const createArbitrageOrders = async (params: ArbitrageOrderParams): Promise<OrderResult[]> => {
+  const didEventPreviouslyFail = failedOrderEventsCache.get(params.eventId);
+  if (didEventPreviouslyFail) {
+    logger.warn(`  ⚠️ Event ${params.eventId} previously failed. Skipping order creation`);
+    return [];
+  }
   const results: OrderResult[] = [];
   logger.info(`\n🚀 Placing ${params.side} orders on ${params.markets.length} markets (${params.sharesPerMarket} shares each)...`);
 
@@ -54,6 +71,13 @@ export const createArbitrageOrders = async (params: ArbitrageOrderParams): Promi
     if (!result.success) {
       logger.warn(`  ⚠️ Failed to place order for: ${market.question}`);
     }
+  }
+
+  const failedOrders = results.filter((r) => !r.success);
+  if (failedOrders.length > 0) {
+    logger.warn(`  ⚠️ Failed to place ${failedOrders.length} orders. Cancelling all orders`);
+    await Promise.all(results.map((order) => cancelOrder(order.orderId)));
+    failedOrderEventsCache.set(params.eventId, true);
   }
 
   const successCount = results.filter((r) => r.success).length;
