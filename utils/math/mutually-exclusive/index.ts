@@ -17,6 +17,7 @@ export const checkMutuallyExclusiveArbitrage = (markets: Market[], stakePerMarke
     side: MarketSide.Yes,
     price: m.yesPrice,
     size: stakePerMarket,
+    daysToExpiry: m.daysToExpiry,
   }));
 
   // Strategy 2: Buy NO on all
@@ -25,6 +26,7 @@ export const checkMutuallyExclusiveArbitrage = (markets: Market[], stakePerMarke
     side: MarketSide.No,
     price: 1 - m.yesPrice,
     size: stakePerMarket,
+    daysToExpiry: m.daysToExpiry,
   }));
 
   const yesArbitrage = checkArbitrage(yesPositions);
