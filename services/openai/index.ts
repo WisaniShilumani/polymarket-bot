@@ -15,13 +15,13 @@ const MUTUALLY_EXCLUSIVE_FILE_PATH = path.join(process.cwd(), 'MUTUALLY_EXCLUSIV
 // LRU cache to store mutually exclusive check results by event ID
 // Cache size: 1000 entries
 const mutuallyExclusiveCache = new LRUCache<string, boolean>({
-  max: 1000,
+  max: 5000,
 });
 
 /**
  * Loads the mutually exclusive cache from MUTUALLY_EXCLUSIVE.txt on startup
  */
-const loadCacheFromFile = (): void => {
+export const loadCacheFromFile = (): void => {
   try {
     if (fs.existsSync(MUTUALLY_EXCLUSIVE_FILE_PATH)) {
       const content = fs.readFileSync(MUTUALLY_EXCLUSIVE_FILE_PATH, 'utf-8');
@@ -61,9 +61,6 @@ const appendResultToFile = async (eventId: string, result: boolean, index: numbe
     }
   });
 };
-
-// Load cache from file on startup
-loadCacheFromFile();
 
 /**
  * Checks if a list of bets are mutually exclusive using OpenAI.

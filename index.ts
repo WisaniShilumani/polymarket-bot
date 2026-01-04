@@ -4,6 +4,7 @@ import { findAndAnalyzeArbitrage } from './services/arbitrage';
 import logger from './utils/logger';
 import { getAccountCollateralBalance } from './services/polymarket/account-balance';
 import { getOpenOrders } from './services/polymarket/orders';
+import { loadCacheFromFile } from './services/openai';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot...');
 
@@ -12,6 +13,10 @@ async function main() {
   logger.header('╔════════════════════════════════════════════════════════════════╗');
   logger.header('║           POLYMARKET ARBITRAGE DETECTION BOT                   ║');
   logger.header('╚════════════════════════════════════════════════════════════════╝');
+
+  // Load mutually exclusive cache from file
+  loadCacheFromFile();
+
   let ordersPlaced = false; // Will run indefinitely
   while (!ordersPlaced) {
     const [openOrders, collateralBalance] = await Promise.all([getOpenOrders(), getAccountCollateralBalance()]);
