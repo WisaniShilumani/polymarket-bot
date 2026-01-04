@@ -1,5 +1,5 @@
 import type { EventRangeArbitrageOpportunity, Market, PolymarketEvent } from '../../../common/types';
-import { DEFAULT_MIN_ORDER_SIZE, MAX_SPREAD } from '../../../config';
+import { DEFAULT_MIN_ORDER_SIZE } from '../../../config';
 import logger from '../../../utils/logger';
 import { rangeArbitrage } from '../../../utils/math/range-arbitrage';
 import { areBetsMutuallyExclusive } from '../../openai';
