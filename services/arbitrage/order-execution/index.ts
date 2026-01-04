@@ -7,7 +7,7 @@ import { getOrderBookDepth } from '../../polymarket/book-depth';
 import { Side } from '@polymarket/clob-client';
 import { rangeArbitrage, type RangeArbitrageResult } from '../../../utils/math/range-arbitrage';
 import { differenceInDays } from 'date-fns';
-import { validateOrder } from './validate';
+import { validateCollateral, validateOrder } from './validate';
 import { getLikelyFillPrice } from '../../polymarket/order-book';
 
 interface RecalculationResult {
@@ -68,7 +68,8 @@ const recalculateWithLikelyFillPrices = async (
     return { success: false };
   }
 
-  if (!validateOrder(recalculatedBundle, availableCollateral, orderCost, marketsForOrders, activeMarkets, eventId)) return { success: false };
+  if (!validateOrder(recalculatedBundle, marketsForOrders, activeMarkets, eventId)) return { success: false };
+  if (!validateCollateral(availableCollateral, orderCost, eventId)) return { success: false };
   return {
     success: true,
     adjustedPrices: useYesStrategy ? likelyYesFillPrices : likelyNoFillPrices,
@@ -87,8 +88,6 @@ export const executeArbitrageOrders = async (
   totalOpenOrderValue: number,
 ): Promise<{ ordersPlaced: boolean; opportunity: EventRangeArbitrageOpportunity }> => {
   const defaultResult = { ordersPlaced: false, opportunity: opportunity };
-  const collateralBalance = await getAccountCollateralBalance();
-  const availableCollateral = collateralBalance - totalOpenOrderValue;
   const { eventData, result } = opportunity;
   const activeMarkets = eventData.markets.filter((m) => !m.closed);
   const yesBundle = result.arbitrageBundles[0];
@@ -98,7 +97,10 @@ export const executeArbitrageOrders = async (
   let strategy: 'YES' | 'NO' = useYesStrategy ? 'YES' : 'NO';
   const tokenIndex = useYesStrategy ? 0 : 1;
   const orderCost = activeMarkets.reduce(
-    (aggr, item) => aggr + (useYesStrategy ? parseFloat(item.lastTradePrice) : 1 - parseFloat(item.lastTradePrice)) * result.normalizedShares,
+    (aggr, item) =>
+      aggr +
+      (useYesStrategy ? parseFloat(item.bestAsk || item.lastTradePrice) : 1 - (parseFloat(item.bestAsk || item.lastTradePrice) || 0.5)) *
+        result.normalizedShares,
     0,
   );
 
@@ -107,10 +109,14 @@ export const executeArbitrageOrders = async (
     yesTokenId: JSON.parse(m.clobTokenIds as unknown as string)[0] as string,
     noTokenId: JSON.parse(m.clobTokenIds as unknown as string)[1] as string,
     question: m.question,
-    price: useYesStrategy ? parseFloat(m.lastTradePrice) || 0.5 : 1 - (parseFloat(m.lastTradePrice) || 0.5),
+    price: useYesStrategy ? parseFloat(m.bestAsk || m.lastTradePrice) || 0.5 : 1 - (parseFloat(m.bestAsk || m.lastTradePrice) || 0.5),
   }));
 
-  if (!validateOrder(selectedBundle, availableCollateral, orderCost, marketsForOrders, activeMarkets, opportunity.eventId)) return defaultResult;
+  if (!validateOrder(selectedBundle, marketsForOrders, activeMarkets, opportunity.eventId)) return defaultResult;
+  const collateralBalance = await getAccountCollateralBalance();
+  const availableCollateral = collateralBalance - totalOpenOrderValue;
+  if (!validateCollateral(availableCollateral, orderCost, opportunity.eventId)) return defaultResult;
+
   const daysToExpiry = activeMarkets[0]?.endDate ? Math.abs(differenceInDays(new Date(activeMarkets[0].endDate), new Date())) : 7;
   const depthCheckPromises = marketsForOrders.map(async (market) => {
     const depthCheck = await getOrderBookDepth(
@@ -127,6 +133,7 @@ export const executeArbitrageOrders = async (
   let resultantOpportunity = opportunity;
   const canFillAll = depthResults.every((r) => r.depthCheck.canFill);
   if (!canFillAll) {
+    // logger.warn(`\n💰 Not all markets can be filled, skipping order execution`);
     return defaultResult;
     // TEMP disabled, creating too many requests
     // const hasLiquidity = depthResults.every((r) => r.depthCheck.totalAvailable >= result.normalizedShares);

@@ -8,7 +8,6 @@ import { executeArbitrageOrders } from '../order-execution';
 import { calculateNormalizedShares, isObviousMutuallyExclusive } from './utils';
 import { getTrades } from '../../polymarket/trade-history';
 import { getOpenOrders } from '../../polymarket/orders';
-import { differenceInDays } from 'date-fns';
 
 /**
  * Checks a single event for range arbitrage opportunities
@@ -21,8 +20,8 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
     .map((m) => ({
       marketId: m.id,
       question: m.question,
-      yesPrice: parseFloat(m.lastTradePrice) || 0.5,
-      noPrice: 1 - (parseFloat(m.lastTradePrice) || 0.5),
+      yesPrice: parseFloat(m.bestAsk || m.lastTradePrice) || 0.5,
+      noPrice: 1 - (parseFloat(m.bestAsk || m.lastTradePrice) || 0.5),
       spread: m.spread,
     }));
 
@@ -48,8 +47,8 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
     markets: activeMarkets.map((m) => ({
       marketId: m.id,
       question: m.question,
-      yesPrice: parseFloat(m.lastTradePrice) || 0.5,
-      noPrice: 1 - (parseFloat(m.lastTradePrice) || 0.5),
+      yesPrice: parseFloat(m.bestAsk || m.lastTradePrice) || 0.5,
+      noPrice: 1 - (parseFloat(m.bestAsk || m.lastTradePrice) || 0.5),
       spread: m.spread,
     })),
     result: {
@@ -103,7 +102,7 @@ export const scanEventsForRangeArbitrage = async (
 
       const opportunities = await Promise.all(getOpportunities);
       const sortedOpportunities = opportunities
-        .filter((o) => o)
+        .filter((o) => !!o)
         .sort((a, b) => b?.result.arbitrageBundles[0]?.worstCaseProfit - a?.result.arbitrageBundles[0]?.worstCaseProfit);
       for (const opportunity of sortedOpportunities) {
         if (!opportunity) continue;

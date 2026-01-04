@@ -2,15 +2,9 @@ import { differenceInDays } from 'date-fns';
 import type { ArbitrageResult, MarketForOrder, PolymarketMarket } from '../../../common/types';
 import { MAX_ORDER_COST, MIN_PROFIT_THRESHOLD, MIN_ROI_THRESHOLD } from '../../../config';
 import { logger } from '../../../utils/logger';
+import { formatCurrency } from '../../../utils/accounting';
 
-export const validateOrder = (
-  selectedBundle: ArbitrageResult,
-  availableCollateral: number,
-  orderCost: number,
-  marketsWithTokens: MarketForOrder[],
-  activeMarkets: PolymarketMarket[],
-  eventId: string,
-) => {
+export const validateOrder = (selectedBundle: ArbitrageResult, marketsWithTokens: MarketForOrder[], activeMarkets: PolymarketMarket[], eventId: string) => {
   const daysToExpiry = activeMarkets[0]?.endDate ? Math.abs(differenceInDays(new Date(activeMarkets[0].endDate), new Date())) : 7;
   const minimumProfit = +(MIN_PROFIT_THRESHOLD * Math.min(daysToExpiry, 3)).toFixed(4); // accept bets with decent returns after 4 days
   if (!selectedBundle || selectedBundle.worstCaseProfit < minimumProfit) {
@@ -19,12 +13,6 @@ export const validateOrder = (
     //     minimumProfit,
     //   )}, skipping order creation`,
     // );
-    return false;
-  }
-
-  const maxOrderCost = Math.min(MAX_ORDER_COST, availableCollateral);
-  if (orderCost > maxOrderCost) {
-    // logger.warn(`  ⚠️ [${eventId}] Total order cost ${formatCurrency(orderCost)} exceeds maximum of ${formatCurrency(maxOrderCost)}, skipping order creation`);
     return false;
   }
 
@@ -41,6 +29,16 @@ export const validateOrder = (
 
   if (marketsWithTokens.length !== activeMarkets.length) {
     logger.warn(`  ⚠️ Only ${marketsWithTokens.length}/${activeMarkets.length} markets have valid token IDs, skipping order creation`);
+    return false;
+  }
+
+  return true;
+};
+
+export const validateCollateral = (availableCollateral: number, orderCost: number, eventId: string) => {
+  const maxOrderCost = Math.min(MAX_ORDER_COST, availableCollateral);
+  if (orderCost > maxOrderCost) {
+    // logger.warn(`  ⚠️ [${eventId}] Total order cost ${formatCurrency(orderCost)} exceeds maximum of ${formatCurrency(maxOrderCost)}, skipping order creation`);
     return false;
   }
 
