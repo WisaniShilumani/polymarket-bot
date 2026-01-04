@@ -3,6 +3,7 @@ import { getClobClient } from '..';
 import logger from '../../../utils/logger';
 import type { OrderParams, OrderResult, ArbitrageOrderParams } from './types';
 import { ORDERS_ENABLED } from '../../../config';
+import { getOrderBookDepth } from '../book-depth';
 
 /**
  * Creates and posts a single order to Polymarket
@@ -40,6 +41,7 @@ export const createOrder = async (params: OrderParams): Promise<OrderResult> => 
 export const createArbitrageOrders = async (params: ArbitrageOrderParams): Promise<OrderResult[]> => {
   const results: OrderResult[] = [];
   logger.info(`\n🚀 Placing ${params.side} orders on ${params.markets.length} markets (${params.sharesPerMarket} shares each)...`);
+
   for (const market of params.markets) {
     const result = await createOrder({
       tokenId: market.tokenId,

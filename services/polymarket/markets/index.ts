@@ -1,5 +1,4 @@
 import type { GetMarketsOptions, PolymarketMarket } from '../../../common/types';
-import { MIN_LIQUIDITY } from '../../../config';
 import logger from '../../../utils/logger';
 import { http } from '../../../utils/http';
 import { buildMarketsUrl } from '../utils';
@@ -14,7 +13,6 @@ export const getMarketsFromRest = async (options: GetMarketsOptions = {}): Promi
   try {
     let markets = await http.get(url).json<PolymarketMarket[]>();
     markets = markets.filter((m) => {
-      if (m.liquidityNum < MIN_LIQUIDITY) return false;
       const isSportsMarket = ['moneyline', 'tennis_match_totals'].includes(m.sportsMarketType ?? '');
       return !isSportsMarket;
     });

@@ -4,6 +4,8 @@ import logger from '../../../utils/logger';
 import { MIN_PROFIT_THRESHOLD, MAX_ORDER_COST, MIN_ROI_THRESHOLD } from '../../../config';
 import { formatCurrency } from '../../../utils/accounting';
 import { createArbitrageOrders } from '../../polymarket/orders';
+import { getOrderBookDepth } from '../../polymarket/book-depth';
+import { Side } from '@polymarket/clob-client';
 
 /**
  * Executes arbitrage orders for a given opportunity
@@ -59,6 +61,7 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
     tokenId: JSON.parse(m.clobTokenIds as unknown as string)[tokenIndex] as string,
     question: m.question,
     price: useYesStrategy ? parseFloat(m.lastTradePrice) || 0.5 : 1 - (parseFloat(m.lastTradePrice) || 0.5),
+    spread: m.spread,
   }));
 
   if (marketsWithTokens.length === 0) {
@@ -68,6 +71,19 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
 
   if (marketsWithTokens.length !== activeMarkets.length) {
     logger.warn(`  ⚠️ Only ${marketsWithTokens.length}/${activeMarkets.length} markets have valid token IDs, skipping order creation`);
+    return false;
+  }
+
+  // Check if the order book depth is sufficient
+  const canFillPromises = marketsForOrders.map(async (market) => {
+    const depthCheck = await getOrderBookDepth(market.tokenId, Side.BUY, result.normalizedShares, market.price, market.spread);
+    return depthCheck.canFill;
+  });
+
+  const canFill = await Promise.all(canFillPromises);
+  const canFillAll = canFill.every((c) => c);
+  if (!canFillAll) {
+    logger.warn(`  ⚠️ Insufficient order book depth`);
     return false;
   }
 

@@ -1,5 +1,5 @@
 import type { EventRangeArbitrageOpportunity, Market, PolymarketEvent } from '../../../common/types';
-import { DEFAULT_MIN_ORDER_SIZE, MAX_SPREAD, MIN_LIQUIDITY } from '../../../config';
+import { DEFAULT_MIN_ORDER_SIZE, MAX_SPREAD } from '../../../config';
 import logger from '../../../utils/logger';
 import { rangeArbitrage } from '../../../utils/math/range-arbitrage';
 import { areBetsMutuallyExclusive } from '../../openai';
@@ -15,8 +15,6 @@ import { getOpenOrders } from '../../polymarket/orders';
 const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<EventRangeArbitrageOpportunity | null> => {
   const activeMarkets = event.markets.filter((m) => !m.closed);
   if (!activeMarkets || activeMarkets.length < 2) return null;
-  const hasLowLiquidityMarket = activeMarkets.some((m) => m.liquidityNum < MIN_LIQUIDITY);
-  if (hasLowLiquidityMarket) return null;
   const marketsForAnalysis: Market[] = activeMarkets
     .filter((m) => !m.closed)
     .map((m) => ({
@@ -67,7 +65,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
 export const scanEventsForRangeArbitrage = async (
   options: { limit?: number } = {},
 ): Promise<{ opportunities: EventRangeArbitrageOpportunity[]; ordersPlaced: boolean }> => {
-  const opportunities: EventRangeArbitrageOpportunity[] = [];
+  const allOpportunities: EventRangeArbitrageOpportunity[] = [];
   let offset = 0;
   const limit = options.limit || 100;
 
@@ -97,15 +95,13 @@ export const scanEventsForRangeArbitrage = async (
         const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
         if (hasTrade) return null;
         const opportunity = await checkEventForRangeArbitrage(event);
-        const hasGoodSpreads = opportunity?.markets.every((m) => m.spread <= MAX_SPREAD);
-        if (!opportunity || !hasGoodSpreads) return null;
         return opportunity;
       });
 
       const opportunities = await Promise.all(getOpportunities);
       for (const opportunity of opportunities) {
         if (!opportunity) continue;
-        opportunities.push(opportunity);
+        allOpportunities.push(opportunity);
         foundInBatch++;
         logger.success(`  ✅ Found: [${opportunity.eventId}] ${opportunity.eventTitle} - ${opportunity.markets.length} markets`);
         const orderPlaced = await executeArbitrageOrders(opportunity, totalOpenOrderValue);
@@ -121,8 +117,8 @@ export const scanEventsForRangeArbitrage = async (
 
   if (ordersPlaced) {
     logger.success(`\n✅ Orders placed successfully!`);
-    return { opportunities, ordersPlaced: true };
+    return { opportunities: allOpportunities, ordersPlaced: true };
   }
 
-  return { opportunities, ordersPlaced: false };
+  return { opportunities: allOpportunities, ordersPlaced: false };
 };
