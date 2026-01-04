@@ -20,10 +20,6 @@
 eb-engine.log
 web.stdout.log
 
-# TypeScript source (we deploy compiled dist/)
-*.ts
-!*.d.ts
-tsconfig.json
 
 # Development files
 .ebextensions/*.md
