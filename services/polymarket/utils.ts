@@ -14,6 +14,8 @@ export const buildEventsUrl = (options: GetEventsOptions = {}) => {
     end_date_min: today,
     end_date_max: maxEndDate,
     start_date_min: startDate,
+    ascending: 'false',
+    order: 'creationDate',
   });
 
   const url = `${POLYMARKET_API_URL}/events?${params.toString()}`;
