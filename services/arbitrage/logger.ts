@@ -1,23 +1,29 @@
 import type { EventRangeArbitrageOpportunity, Market, MarketSimpleArbitrageOpportunity } from '../../common/types';
 import logger from '../../utils/logger';
 
+interface TopOpportunity {
+  marketId: string;
+  type: string;
+  roi: number;
+  profit: number;
+  cost: number;
+  question: string;
+  bets: string[];
+  url: string;
+}
+
 export const displayMarketSimpleArbitrageResults = (opportunities: MarketSimpleArbitrageOpportunity[]) => {
   logger.log('\n\n');
   logger.header('╔════════════════════════════════════════════════════════════════╗');
   logger.header('║             MARKET SIMPLE ARBITRAGE RESULTS                    ║');
   logger.header('╚════════════════════════════════════════════════════════════════╝\n');
-
   logger.info(`Total Opportunities Found: ${opportunities.length}\n`);
-
   if (opportunities.length > 0) {
-    // Sort by ROI descending
     opportunities.sort((a, b) => b.roi - a.roi);
-
     logger.header('═'.repeat(70));
     logger.header('OPPORTUNITIES (sorted by ROI):');
     logger.header('═'.repeat(70));
     logger.log('');
-
     opportunities.forEach((opp, index) => {
       logger.highlight(`${index + 1}. ${opp.question}`);
       logger.info(`   Market ID: ${opp.marketId}`);
@@ -36,7 +42,6 @@ export const displayMarketSimpleArbitrageResults = (opportunities: MarketSimpleA
     const totalProfit = opportunities.reduce((sum, opp) => sum + opp.guaranteedProfit, 0);
     const totalCost = opportunities.reduce((sum, opp) => sum + opp.totalCost, 0);
     const avgROI = opportunities.reduce((sum, opp) => sum + opp.roi, 0) / opportunities.length;
-
     logger.header('═'.repeat(70));
     logger.header('SUMMARY STATISTICS:');
     logger.header('═'.repeat(70));
@@ -57,22 +62,18 @@ export const displayEventRangeArbitrageResults = (opportunities: EventRangeArbit
   logger.header('╔════════════════════════════════════════════════════════════════╗');
   logger.header('║               EVENT RANGE ARBITRAGE RESULTS                    ║');
   logger.header('╚════════════════════════════════════════════════════════════════╝\n');
-
   logger.info(`Total Opportunities Found: ${opportunities.length}\n`);
-
   if (opportunities.length > 0) {
     logger.header('═'.repeat(70));
     logger.header('OPPORTUNITIES:');
     logger.header('═'.repeat(70));
     logger.log('');
-
     opportunities.forEach((opp, index) => {
       logger.highlight(`${index + 1}. ${opp.eventTitle}`);
       logger.info(`   Event ID: ${opp.eventId}`);
       logger.info(`   Slug: ${opp.eventSlug}`);
       logger.info(`   URL: https://polymarket.com/event/${opp.eventSlug}`);
       logger.info(`   Markets (${opp.markets.length}):`);
-
       opp.markets.forEach((market, idx) => {
         logger.info(`     ${idx + 1}. ${market.question}`);
         logger.debug(`        Market ID: ${market.marketId}`);
@@ -109,18 +110,6 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
   logger.header('║                  TOP ARBITRAGE OPPORTUNITIES                   ║');
   logger.header('║                    (Sorted by ROI)                             ║');
   logger.header('╚════════════════════════════════════════════════════════════════╝\n');
-
-  interface TopOpportunity {
-    marketId: string;
-    type: string;
-    roi: number;
-    profit: number;
-    cost: number;
-    question: string;
-    bets: string[];
-    url: string;
-  }
-
   const allOpportunities: TopOpportunity[] = [];
 
   // Add market simple arbitrage
@@ -142,7 +131,6 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
     const bestBundle = opp.result.arbitrageBundles.find((b: any) => b.isArbitrage);
     if (bestBundle) {
       const normalizedShares = opp.result.normalizedShares || 1;
-
       allOpportunities.push({
         type: 'EVENT',
         roi: (bestBundle.worstCaseProfit / bestBundle.cost) * 100,
@@ -159,15 +147,11 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
     }
   });
 
-  // Sort by ROI descending and take top 20
   allOpportunities.sort((a, b) => b.roi - a.roi);
   const topOpportunities = allOpportunities.slice(0, 20);
-
-  // Display table
   logger.log('┌────┬──────────┬──────────┬───────────┬──────────┐');
   logger.log('│ #  │ Type     │ ROI      │ Profit    │ Cost     │');
   logger.log('├────┼──────────┼──────────┼───────────┼──────────┤');
-
   topOpportunities.forEach((opp, index) => {
     const num = (index + 1).toString().padEnd(2);
     const type = opp.type.padEnd(8);
@@ -177,16 +161,12 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
 
     logger.log(`│ ${num} │ ${type} │ ${roi} │ ${profit} │ ${cost} │`);
   });
-
   logger.log('└────┴──────────┴──────────┴───────────┴──────────┘');
   logger.log('');
-
-  // Display detailed betting instructions for top 10
   logger.header('═'.repeat(70));
   logger.header('DETAILED BETTING INSTRUCTIONS (Top 10):');
   logger.header('═'.repeat(70));
   logger.log('');
-
   topOpportunities.slice(0, 10).forEach((opp, index) => {
     logger.highlight(`${index + 1}. ${opp.question}`);
     logger.info(`   Type: ${opp.type} | ROI: ${opp.roi.toFixed(2)}% | Profit: $${opp.profit.toFixed(2)} | Cost: $${opp.cost.toFixed(2)}`);
@@ -199,11 +179,9 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
     logger.log('');
   });
 
-  // Summary statistics
   const totalProfit = allOpportunities.reduce((sum, opp) => sum + opp.profit, 0);
   const totalCost = allOpportunities.reduce((sum, opp) => sum + opp.cost, 0);
   const avgROI = allOpportunities.reduce((sum, opp) => sum + opp.roi, 0) / allOpportunities.length;
-
   logger.header('═'.repeat(70));
   logger.header('OVERALL SUMMARY:');
   logger.header('═'.repeat(70));

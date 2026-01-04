@@ -6,7 +6,7 @@ import { areBetsMutuallyExclusive } from '../../openai';
 import { getEventsFromRest } from '../../polymarket/events';
 import { executeArbitrageOrders } from '../order-execution';
 import { getHeldEventIds } from '../existing-orders';
-import { calculateNormalizedShares } from '../logger';
+import { calculateNormalizedShares } from './utils';
 
 /**
  * Checks a single event for range arbitrage opportunities
