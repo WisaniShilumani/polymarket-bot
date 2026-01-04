@@ -10,6 +10,7 @@ interface TopOpportunity {
   question: string;
   bets: string[];
   url: string;
+  endDate?: string;
 }
 
 export const displayMarketSimpleArbitrageResults = (opportunities: MarketSimpleArbitrageOpportunity[]) => {
@@ -123,6 +124,7 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
       question: opp.question,
       bets: [`Buy YES for $${opp.yesPrice.toFixed(2)}`, `Buy NO for $${opp.noPrice.toFixed(2)}`],
       url: `https://polymarket.com/event/${opp.slug}`,
+      endDate: opp.marketData.endDate,
     });
   });
 
@@ -143,6 +145,7 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
           return `Buy YES on "${m.question}" for $${orderCost.toFixed(2)} (${normalizedShares.toFixed(2)} shares @ ${(m.yesPrice * 100).toFixed(2)}%)`;
         }),
         url: `https://polymarket.com/event/${opp.eventSlug}`,
+        endDate: opp.eventData.endDate || '',
       });
     }
   });
@@ -171,6 +174,7 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
     logger.highlight(`${index + 1}. ${opp.question}`);
     logger.info(`   Type: ${opp.type} | ROI: ${opp.roi.toFixed(2)}% | Profit: $${opp.profit.toFixed(2)} | Cost: $${opp.cost.toFixed(2)}`);
     logger.info(`   URL: ${opp.url}`);
+    logger.info(`   End Date: ${opp.endDate ? new Date(opp.endDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}`);
     logger.debug(`   API: https://gamma-api.polymarket.com/markets/${opp.marketId}`);
     logger.log('   Bets to place:');
     opp.bets.forEach((bet, idx) => {

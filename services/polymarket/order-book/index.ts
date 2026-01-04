@@ -20,5 +20,9 @@ export const getLikelyFillPrice = async (tokenId: string, side: Side, desiredSiz
     if (remainingSize <= 0) break;
   }
 
-  return totalCost;
+  if (remainingSize > 0) {
+    return 0;
+  }
+
+  return +(totalCost / desiredSize).toFixed(2);
 };

@@ -16,7 +16,8 @@ export interface OrderResult {
 export interface ArbitrageOrderParams {
   eventId: string;
   markets: Array<{
-    tokenId: string;
+    yesTokenId: string;
+    noTokenId: string;
     question: string;
     price: number;
   }>;

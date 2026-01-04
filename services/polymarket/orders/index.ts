@@ -61,7 +61,7 @@ export const createArbitrageOrders = async (params: ArbitrageOrderParams): Promi
 
   for (const market of params.markets) {
     const result = await createOrder({
-      tokenId: market.tokenId,
+      tokenId: params.side === 'YES' ? market.yesTokenId : market.noTokenId,
       price: market.price,
       size: params.sharesPerMarket,
       side: Side.BUY,

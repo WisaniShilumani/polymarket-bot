@@ -22,6 +22,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
       marketId: m.id,
       question: m.question,
       yesPrice: parseFloat(m.lastTradePrice) || 0.5,
+      noPrice: 1 - (parseFloat(m.lastTradePrice) || 0.5),
       spread: m.spread,
       daysToExpiry: Math.abs(differenceInDays(new Date(m.endDate), new Date())),
     }));
@@ -49,6 +50,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
       marketId: m.id,
       question: m.question,
       yesPrice: parseFloat(m.lastTradePrice) || 0.5,
+      noPrice: 1 - (parseFloat(m.lastTradePrice) || 0.5),
       spread: m.spread,
       daysToExpiry: Math.abs(differenceInDays(new Date(m.endDate), new Date())),
     })),
@@ -102,13 +104,16 @@ export const scanEventsForRangeArbitrage = async (
       });
 
       const opportunities = await Promise.all(getOpportunities);
-      for (const opportunity of opportunities) {
+      const sortedOpportunities = opportunities
+        .filter((o) => o)
+        .sort((a, b) => b?.result.arbitrageBundles[0]?.worstCaseProfit - a?.result.arbitrageBundles[0]?.worstCaseProfit);
+      for (const opportunity of sortedOpportunities) {
         if (!opportunity) continue;
         foundInBatch++;
-        const orderPlaced = await executeArbitrageOrders(opportunity, totalOpenOrderValue);
-        if (orderPlaced) {
+        const { ordersPlaced: placed, opportunity: resultantOpportunity } = await executeArbitrageOrders(opportunity, totalOpenOrderValue);
+        if (placed) {
           ordersPlaced = true;
-          allOpportunities.push(opportunity);
+          allOpportunities.push(resultantOpportunity);
         }
       }
 

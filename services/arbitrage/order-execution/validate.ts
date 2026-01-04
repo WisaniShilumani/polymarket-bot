@@ -1,0 +1,47 @@
+import type { ArbitrageResult, MarketForOrder, PolymarketMarket } from '../../../common/types';
+import { MAX_ORDER_COST, MIN_PROFIT_THRESHOLD, MIN_ROI_THRESHOLD } from '../../../config';
+import { formatCurrency } from '../../../utils/accounting';
+import { logger } from '../../../utils/logger';
+
+export const validateOrder = (
+  selectedBundle: ArbitrageResult,
+  availableCollateral: number,
+  orderCost: number,
+  marketsWithTokens: MarketForOrder[],
+  activeMarkets: PolymarketMarket[],
+  eventId: string,
+) => {
+  const minimumProfit = +(MIN_PROFIT_THRESHOLD * Math.min(selectedBundle.daysToExpiry, 3)).toFixed(4); // accept bets with decent returns after 4 days
+  if (!selectedBundle || selectedBundle.worstCaseProfit < minimumProfit) {
+    logger.warn(
+      `  ⚠️ [${eventId}] Profit ${formatCurrency(selectedBundle?.worstCaseProfit ?? 0)} is below minimum threshold of ${formatCurrency(
+        minimumProfit,
+      )}, skipping order creation`,
+    );
+    return false;
+  }
+
+  const maxOrderCost = Math.min(MAX_ORDER_COST, availableCollateral);
+  if (orderCost > maxOrderCost) {
+    logger.warn(`  ⚠️ [${eventId}] Total order cost ${formatCurrency(orderCost)} exceeds maximum of ${formatCurrency(maxOrderCost)}, skipping order creation`);
+    return false;
+  }
+
+  const roi = (selectedBundle.worstCaseProfit / selectedBundle.cost) * 100;
+  if (roi < MIN_ROI_THRESHOLD) {
+    logger.warn(`  ⚠️ [${eventId}] ROI ${roi.toFixed(2)}% is below minimum threshold of ${MIN_ROI_THRESHOLD}%, skipping order creation`);
+    return false;
+  }
+
+  if (marketsWithTokens.length === 0) {
+    logger.warn(`  ⚠️ No valid token IDs found for event ${eventId}, skipping order creation`);
+    return false;
+  }
+
+  if (marketsWithTokens.length !== activeMarkets.length) {
+    logger.warn(`  ⚠️ Only ${marketsWithTokens.length}/${activeMarkets.length} markets have valid token IDs, skipping order creation`);
+    return false;
+  }
+
+  return true;
+};

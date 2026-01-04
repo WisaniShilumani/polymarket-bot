@@ -4,6 +4,7 @@ export interface Market {
   marketId: string;
   question: string;
   yesPrice: number;
+  noPrice: number;
   spread: number;
   daysToExpiry: number;
   slug?: string;
@@ -62,6 +63,14 @@ export interface PolymarketMarket {
   sportsMarketType?: string;
   spread: number;
   endDate: string;
+}
+
+export interface MarketForOrder {
+  yesTokenId: string;
+  noTokenId: string;
+  question: string;
+  price: number;
+  daysToExpiry: number;
 }
 
 interface Tag {

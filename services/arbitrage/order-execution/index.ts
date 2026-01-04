@@ -1,24 +1,20 @@
-import type { EventRangeArbitrageOpportunity, Market, PolymarketMarket } from '../../../common/types';
+import type { EventRangeArbitrageOpportunity, Market, MarketForOrder, PolymarketMarket } from '../../../common/types';
 import { getAccountCollateralBalance } from '../../polymarket/account-balance';
 import logger from '../../../utils/logger';
-import { MIN_PROFIT_THRESHOLD, MAX_ORDER_COST, MIN_ROI_THRESHOLD } from '../../../config';
 import { formatCurrency } from '../../../utils/accounting';
 import { createArbitrageOrders } from '../../polymarket/orders';
 import { getOrderBookDepth } from '../../polymarket/book-depth';
 import { Side } from '@polymarket/clob-client';
-import { rangeArbitrage } from '../../../utils/math/range-arbitrage';
+import { rangeArbitrage, type RangeArbitrageResult } from '../../../utils/math/range-arbitrage';
 import { differenceInDays } from 'date-fns';
-
-interface MarketForOrder {
-  tokenId: string;
-  question: string;
-  price: number;
-  daysToExpiry: number;
-}
+import { validateOrder } from './validate';
+import { getLikelyFillPrice } from '../../polymarket/order-book';
 
 interface RecalculationResult {
   success: boolean;
   adjustedPrices?: number[];
+  recalculatedResult?: RangeArbitrageResult;
+  strategy?: 'YES' | 'NO';
 }
 
 /**
@@ -26,58 +22,59 @@ interface RecalculationResult {
  * Returns adjusted prices if arbitrage is still profitable, null otherwise.
  */
 const recalculateWithLikelyFillPrices = async (
+  eventId: string,
+  availableCollateral: number,
+  orderCost: number,
   marketsForOrders: MarketForOrder[],
   activeMarkets: PolymarketMarket[],
   normalizedShares: number,
-  useYesStrategy: boolean,
 ): Promise<RecalculationResult> => {
-  const likelyFillPricesPromises = marketsForOrders.map(async (market) => {
-    const depthCheck = await getOrderBookDepth(market.tokenId, Side.BUY, normalizedShares, 1.0);
-    return { avgFillPrice: depthCheck.avgFillPrice, canFill: depthCheck.totalAvailable >= normalizedShares };
+  const likelyYesFillPricesPromises = marketsForOrders.map(async (market) => {
+    const fillPrice = await getLikelyFillPrice(market.yesTokenId, Side.BUY, normalizedShares);
+    return fillPrice;
   });
 
-  const likelyFillPrices = await Promise.all(likelyFillPricesPromises);
-  const allHavePrices = likelyFillPrices.every((r) => r.canFill && r.avgFillPrice > 0);
-  if (!allHavePrices) {
+  const likelyNoFillPricesPromises = marketsForOrders.map(async (market) => {
+    const fillPrice = await getLikelyFillPrice(market.noTokenId, Side.BUY, normalizedShares);
+    return fillPrice;
+  });
+
+  const likelyYesFillPrices = await Promise.all(likelyYesFillPricesPromises);
+  const likelyNoFillPrices = await Promise.all(likelyNoFillPricesPromises);
+  const allHavePrices = likelyYesFillPrices.every((price) => price > 0);
+  const allHaveNoPrices = likelyNoFillPrices.every((price) => price > 0);
+  if (!allHavePrices || !allHaveNoPrices) {
     return { success: false };
   }
 
   const marketsWithAdjustedPrices: Market[] = activeMarkets.map((m, index) => {
-    const likelyFillPrice = likelyFillPrices[index];
-    const fillPrice = likelyFillPrice?.avgFillPrice ?? 0;
-    const yesPrice = useYesStrategy ? fillPrice : 1 - fillPrice;
+    const yesPrice = likelyYesFillPrices[index] || 0;
+    const noPrice = likelyNoFillPrices[index] || 0;
     return {
       marketId: m.id,
       question: m.question,
       yesPrice,
+      noPrice,
       spread: m.spread,
       daysToExpiry: Math.abs(differenceInDays(new Date(m.endDate), new Date())),
     };
   });
 
   const recalculatedResult = rangeArbitrage(marketsWithAdjustedPrices, 1);
+  const yesBundle = recalculatedResult.arbitrageBundles[0];
+  const noBundle = recalculatedResult.arbitrageBundles[1];
+  const useYesStrategy = yesBundle && (!noBundle || yesBundle.worstCaseProfit >= (noBundle?.worstCaseProfit ?? 0));
   const recalculatedBundle = useYesStrategy ? recalculatedResult.arbitrageBundles[0] : recalculatedResult.arbitrageBundles[1];
   if (!recalculatedBundle || !recalculatedBundle.isArbitrage) {
     return { success: false };
   }
 
-  const minimumProfit = MIN_PROFIT_THRESHOLD * recalculatedBundle.daysToExpiry;
-  if (recalculatedBundle.worstCaseProfit < minimumProfit) {
-    logger.warn(
-      `  ⚠️ Recalculated profit $${recalculatedBundle.worstCaseProfit.toFixed(4)} is below minimum threshold of $${minimumProfit}, skipping order creation`,
-    );
-    return { success: false };
-  }
-
-  const recalculatedRoi = (recalculatedBundle.worstCaseProfit / recalculatedBundle.cost) * 100;
-  if (recalculatedRoi < MIN_ROI_THRESHOLD) {
-    logger.warn(`  ⚠️ Recalculated ROI ${recalculatedRoi.toFixed(2)}% is below minimum threshold of ${MIN_ROI_THRESHOLD}%, skipping order creation`);
-    return { success: false };
-  }
-
+  if (!validateOrder(recalculatedBundle, availableCollateral, orderCost, marketsForOrders, activeMarkets, eventId)) return { success: false };
   return {
     success: true,
-    adjustedPrices: likelyFillPrices.map((p) => p.avgFillPrice),
+    adjustedPrices: useYesStrategy ? likelyYesFillPrices : likelyNoFillPrices,
+    recalculatedResult,
+    strategy: useYesStrategy ? 'YES' : 'NO',
   };
 };
 
@@ -86,85 +83,76 @@ const recalculateWithLikelyFillPrices = async (
  * Determines whether to buy YES or NO on all markets based on which strategy is profitable
  * Returns true if orders were actually placed, false otherwise
  */
-export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpportunity, totalOpenOrderValue: number): Promise<boolean> => {
+export const executeArbitrageOrders = async (
+  opportunity: EventRangeArbitrageOpportunity,
+  totalOpenOrderValue: number,
+): Promise<{ ordersPlaced: boolean; opportunity: EventRangeArbitrageOpportunity }> => {
+  const defaultResult = { ordersPlaced: false, opportunity: opportunity };
   const collateralBalance = await getAccountCollateralBalance();
   const availableCollateral = collateralBalance - totalOpenOrderValue;
   const { eventData, result } = opportunity;
   const activeMarkets = eventData.markets.filter((m) => !m.closed);
-
-  // Find the profitable arbitrage bundle (YES strategy is index 0, NO strategy is index 1)
   const yesBundle = result.arbitrageBundles[0];
   const noBundle = result.arbitrageBundles[1];
-
-  // Determine which strategy to use (prefer the one with higher profit)
   const useYesStrategy = yesBundle && (!noBundle || yesBundle.worstCaseProfit >= (noBundle?.worstCaseProfit ?? 0));
   const selectedBundle = useYesStrategy ? yesBundle : noBundle;
-  const strategy = useYesStrategy ? 'YES' : 'NO';
-  const tokenIndex = useYesStrategy ? 0 : 1; // 0 = YES token, 1 = NO token
+  let strategy: 'YES' | 'NO' = useYesStrategy ? 'YES' : 'NO';
+  const tokenIndex = useYesStrategy ? 0 : 1;
   const orderCost = activeMarkets.reduce(
     (aggr, item) => aggr + (useYesStrategy ? parseFloat(item.lastTradePrice) : 1 - parseFloat(item.lastTradePrice)) * result.normalizedShares,
     0,
   );
 
-  const minimumProfit = MIN_PROFIT_THRESHOLD * selectedBundle.daysToExpiry;
-  if (!selectedBundle || selectedBundle.worstCaseProfit < minimumProfit) {
-    logger.warn(`  ⚠️ Profit $${selectedBundle?.worstCaseProfit.toFixed(4) ?? '0'} is below minimum threshold of $${minimumProfit}, skipping order creation`);
-    return false;
-  }
-
-  // Check maximum order cost
-  const maxOrderCost = Math.min(MAX_ORDER_COST, availableCollateral);
-  if (orderCost > maxOrderCost) {
-    // logger.warn(`  ⚠️ Total order cost ${formatCurrency(orderCost)} exceeds maximum of ${formatCurrency(maxOrderCost)}, skipping order creation`);
-    return false;
-  }
-
-  // Check minimum ROI threshold of 1.01%
-  const roi = (selectedBundle.worstCaseProfit / selectedBundle.cost) * 100;
-  if (roi < MIN_ROI_THRESHOLD) {
-    logger.warn(`  ⚠️ ROI ${roi.toFixed(2)}% is below minimum threshold of ${MIN_ROI_THRESHOLD}%, skipping order creation`);
-    return false;
-  }
-
-  // Build market params for order creation
   const marketsWithTokens = activeMarkets.filter((m) => m.clobTokenIds && m.clobTokenIds.length > tokenIndex && m.clobTokenIds[tokenIndex]);
-
-  const marketsForOrders = marketsWithTokens.map((m) => ({
-    tokenId: JSON.parse(m.clobTokenIds as unknown as string)[tokenIndex] as string,
+  const marketsForOrders: MarketForOrder[] = marketsWithTokens.map((m) => ({
+    yesTokenId: JSON.parse(m.clobTokenIds as unknown as string)[0] as string,
+    noTokenId: JSON.parse(m.clobTokenIds as unknown as string)[1] as string,
     question: m.question,
     price: useYesStrategy ? parseFloat(m.lastTradePrice) || 0.5 : 1 - (parseFloat(m.lastTradePrice) || 0.5),
     daysToExpiry: Math.abs(differenceInDays(new Date(m.endDate), new Date())),
   }));
 
-  if (marketsWithTokens.length === 0) {
-    logger.warn(`  ⚠️ No valid token IDs found for event ${opportunity.eventId}, skipping order creation`);
-    return false;
-  }
+  if (!validateOrder(selectedBundle, availableCollateral, orderCost, marketsForOrders, activeMarkets, opportunity.eventId)) return defaultResult;
 
-  if (marketsWithTokens.length !== activeMarkets.length) {
-    logger.warn(`  ⚠️ Only ${marketsWithTokens.length}/${activeMarkets.length} markets have valid token IDs, skipping order creation`);
-    return false;
-  }
-
-  // Check if the order book depth is sufficient and get likely fill prices
   const depthCheckPromises = marketsForOrders.map(async (market) => {
-    const depthCheck = await getOrderBookDepth(market.tokenId, Side.BUY, result.normalizedShares, market.price);
+    const depthCheck = await getOrderBookDepth(useYesStrategy ? market.yesTokenId : market.noTokenId, Side.BUY, result.normalizedShares, market.price);
     return { market, depthCheck };
   });
 
   const depthResults = await Promise.all(depthCheckPromises);
+  let resultantOpportunity = opportunity;
   const canFillAll = depthResults.every((r) => r.depthCheck.canFill);
   if (!canFillAll) {
     const hasLiquidity = depthResults.every((r) => r.depthCheck.totalAvailable >= result.normalizedShares);
-    if (!hasLiquidity) return false;
-    const recalculation = await recalculateWithLikelyFillPrices(marketsForOrders, activeMarkets, result.normalizedShares, useYesStrategy);
-    if (!recalculation.success || !recalculation.adjustedPrices) return false;
+    if (!hasLiquidity) return defaultResult;
+    const recalculation = await recalculateWithLikelyFillPrices(
+      opportunity.eventId,
+      availableCollateral,
+      orderCost,
+      marketsForOrders,
+      activeMarkets,
+      result.normalizedShares,
+    );
+    if (!recalculation.success || !recalculation.adjustedPrices) return defaultResult;
+    strategy = recalculation.strategy || strategy;
     marketsForOrders.forEach((market, index) => {
       market.price = recalculation.adjustedPrices?.[index] || market.price;
     });
 
     const adjustedOrderCost = marketsForOrders.reduce((sum, m) => sum + m.price * result.normalizedShares, 0);
     logger.money(`\n💰 Executing ${strategy} arbitrage (adjusted prices) on event: ${opportunity.eventTitle} for ${formatCurrency(adjustedOrderCost)}`);
+
+    resultantOpportunity = {
+      ...opportunity,
+      result: {
+        ...result,
+        arbitrageBundles: [recalculation.recalculatedResult?.arbitrageBundles[0] || result.arbitrageBundles[0]],
+      },
+      markets: opportunity.markets.map((market, index) => ({
+        ...market,
+        yesPrice: recalculation.adjustedPrices?.[index] || market.yesPrice,
+      })),
+    };
   } else {
     logger.money(`\n💰 Executing ${strategy} arbitrage on event: ${opportunity.eventTitle} for ${formatCurrency(orderCost)}`);
   }
@@ -177,5 +165,5 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
   });
 
   const ordersPlaced = orderResults.every((result) => result.success);
-  return ordersPlaced;
+  return { ordersPlaced, opportunity: resultantOpportunity };
 };

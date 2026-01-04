@@ -3,7 +3,7 @@ import { MarketSide } from '../../../common/enums';
 import { getTotalCost } from '../cost';
 import { getPayout } from '../payout';
 
-interface RangeArbitrageResult {
+export interface RangeArbitrageResult {
   arbitrageBundles: ArbitrageResult[];
 }
 
@@ -42,13 +42,14 @@ export const rangeArbitrage = (markets: Market[], stakePerMarket = 1): RangeArbi
   const noPositions: Position[] = markets.map((m) => ({
     marketId: m.marketId,
     side: MarketSide.No,
-    price: 1 - m.yesPrice,
+    price: m.noPrice,
     size: stakePerMarket,
     daysToExpiry: m.daysToExpiry,
   }));
 
   const yesArbitrage = checkMutuallyExclusiveArbitrage(yesPositions, marketIds);
   const noArbitrage = checkMutuallyExclusiveArbitrage(noPositions, marketIds);
+  // TODO - We're only returning the YES bundle for now because in some markets no is not = 1 - yesPrice
   const arbitrageBundles = [yesArbitrage, noArbitrage].filter((a) => a.isArbitrage);
   return {
     arbitrageBundles,
