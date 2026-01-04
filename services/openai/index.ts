@@ -4,6 +4,7 @@ import logger from '../../utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
 import { OPENAI_API_KEY } from '../../config';
+import { promises as fsPromises } from 'fs';
 
 const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
@@ -45,22 +46,20 @@ const loadCacheFromFile = (): void => {
   }
 };
 
+let writeQueue: Promise<void> = Promise.resolve();
 /**
  * Appends a result to MUTUALLY_EXCLUSIVE.txt
  */
 const appendResultToFile = async (eventId: string, result: boolean, index: number): Promise<void> => {
-  try {
-    await new Promise((resolve) => setTimeout(resolve, index * 100));
-    fs.appendFile(MUTUALLY_EXCLUSIVE_FILE_PATH, `${eventId}:${result}\n`, 'utf-8', (err) => {
-      if (err) {
-        logger.error('Error writing to MUTUALLY_EXCLUSIVE.txt:', err);
-      } else {
-        logger.debug(`  📝 Recorded event ${eventId} (${result}) in MUTUALLY_EXCLUSIVE.txt after ${index}ms`);
-      }
-    });
-  } catch (error) {
-    logger.error('Error writing to MUTUALLY_EXCLUSIVE.txt:', error);
-  }
+  writeQueue = writeQueue.then(async () => {
+    try {
+      await new Promise((resolve) => setTimeout(resolve, index * 50));
+      await fsPromises.appendFile(MUTUALLY_EXCLUSIVE_FILE_PATH, `${eventId}:${result}\n`, 'utf-8');
+      logger.debug(`  📝 Recorded event ${eventId} (${result}) in MUTUALLY_EXCLUSIVE.txt after ${index * 50}ms`);
+    } catch (error) {
+      logger.error('Error writing to MUTUALLY_EXCLUSIVE.txt:', error);
+    }
+  });
 };
 
 // Load cache from file on startup
