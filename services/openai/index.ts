@@ -53,9 +53,9 @@ let writeQueue: Promise<void> = Promise.resolve();
 const appendResultToFile = async (eventId: string, result: boolean, index: number): Promise<void> => {
   writeQueue = writeQueue.then(async () => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, index * 50));
+      await new Promise((resolve) => setTimeout(resolve, index * 10));
       await fsPromises.appendFile(MUTUALLY_EXCLUSIVE_FILE_PATH, `${eventId}:${result}\n`, 'utf-8');
-      logger.debug(`  📝 Recorded event ${eventId} (${result}) in MUTUALLY_EXCLUSIVE.txt after ${index * 50}ms`);
+      logger.debug(`  📝 Recorded event ${eventId} (${result}) in MUTUALLY_EXCLUSIVE.txt after ${index * 10}ms`);
     } catch (error) {
       logger.error('Error writing to MUTUALLY_EXCLUSIVE.txt:', error);
     }
