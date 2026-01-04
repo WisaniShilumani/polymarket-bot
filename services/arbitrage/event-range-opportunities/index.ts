@@ -7,8 +7,7 @@ import { getEventsFromRest } from '../../polymarket/events';
 import { executeArbitrageOrders } from '../order-execution';
 import { calculateNormalizedShares } from './utils';
 import { getTrades } from '../../polymarket/trade-history';
-import { getOpenOrders } from '../../polymarket/oders';
-import { getAccountCollateralBalance } from '../../polymarket/account-balance';
+import { getOpenOrders } from '../../polymarket/orders';
 
 /**
  * Checks a single event for range arbitrage opportunities

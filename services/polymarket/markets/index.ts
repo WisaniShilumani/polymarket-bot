@@ -1,6 +1,7 @@
 import type { GetMarketsOptions, PolymarketMarket } from '../../../common/types';
 import { MIN_LIQUIDITY } from '../../../config';
 import logger from '../../../utils/logger';
+import { http } from '../../../utils/http';
 import { buildMarketsUrl } from '../utils';
 
 /**
@@ -8,19 +9,10 @@ import { buildMarketsUrl } from '../utils';
  * @param options - Query options for filtering and pagination
  * @returns Array of market objects
  */
-export const getMarketsFromRest = async (options: GetMarketsOptions = {}, retries = 0): Promise<PolymarketMarket[]> => {
+export const getMarketsFromRest = async (options: GetMarketsOptions = {}): Promise<PolymarketMarket[]> => {
   const url = buildMarketsUrl(options);
   try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      if (retries < 3) {
-        logger.warn(`Failed to fetch markets: ${response.status} ${response.statusText}. Retrying...`);
-        return getMarketsFromRest(options, retries + 1);
-      }
-      throw new Error(`Failed to fetch markets: ${response.status} ${response.statusText}`);
-    }
-
-    let markets: PolymarketMarket[] = await response.json();
+    let markets = await http.get(url).json<PolymarketMarket[]>();
     markets = markets.filter((m) => {
       if (m.liquidityNum < MIN_LIQUIDITY) return false;
       const isSportsMarket = ['moneyline', 'tennis_match_totals'].includes(m.sportsMarketType ?? '');

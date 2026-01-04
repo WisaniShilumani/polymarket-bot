@@ -62,6 +62,5 @@ export const createArbitrageOrders = async (params: ArbitrageOrderParams): Promi
 export const getOpenOrders = async (): Promise<OpenOrder[]> => {
   const clobClient = await getClobClient();
   const orders = await clobClient.getOpenOrders();
-  console.log('orders=', orders);
   return orders;
 };

@@ -3,7 +3,7 @@ import { getAccountCollateralBalance } from '../../polymarket/account-balance';
 import logger from '../../../utils/logger';
 import { MIN_PROFIT_THRESHOLD, MAX_ORDER_COST, MIN_ROI_THRESHOLD } from '../../../config';
 import { formatCurrency } from '../../../utils/accounting';
-import { createArbitrageOrders } from '../../polymarket/oders';
+import { createArbitrageOrders } from '../../polymarket/orders';
 
 /**
  * Executes arbitrage orders for a given opportunity

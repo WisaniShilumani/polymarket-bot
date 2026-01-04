@@ -1,6 +1,7 @@
 import { getEventsFromRest } from '../polymarket/events';
 import type { PolymarketEvent } from '../../common/types';
 import logger from '../../utils/logger';
+import { http } from '../../utils/http';
 import { ARBITRAGE_DETECTION_BOT_URL } from '../../config';
 
 const BATCH_SIZE = 500;
@@ -35,19 +36,12 @@ const sendEventsForArbitrageDetection = async (events: EventPayload[]): Promise<
   }
 
   try {
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ events }),
-    });
+    const result = await http
+      .post(webhookUrl, {
+        json: { events },
+      })
+      .json<SentimentalArbitrageResponse>();
 
-    if (!response.ok) {
-      throw new Error(`Arbitrage detection API failed: ${response.status} ${response.statusText}`);
-    }
-
-    const result: SentimentalArbitrageResponse = await response.json();
     logger.success(`  ✅ Received ${result.output?.length || 0} arbitrage opportunities from API`);
 
     return result.output || [];
