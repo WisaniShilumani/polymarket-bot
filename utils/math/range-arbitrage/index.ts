@@ -22,7 +22,6 @@ export function checkMutuallyExclusiveArbitrage(positions: Position[], marketIds
     worstCaseProfit,
     cost,
     minPayout,
-    daysToExpiry: positions[0]?.daysToExpiry ?? 7,
   };
 }
 
@@ -35,7 +34,6 @@ export const rangeArbitrage = (markets: Market[], stakePerMarket = 1): RangeArbi
     side: MarketSide.Yes,
     price: m.yesPrice,
     size: stakePerMarket,
-    daysToExpiry: m.daysToExpiry,
   }));
 
   // Strategy B: Buy NO on all ranges
@@ -44,7 +42,6 @@ export const rangeArbitrage = (markets: Market[], stakePerMarket = 1): RangeArbi
     side: MarketSide.No,
     price: m.noPrice,
     size: stakePerMarket,
-    daysToExpiry: m.daysToExpiry,
   }));
 
   const yesArbitrage = checkMutuallyExclusiveArbitrage(yesPositions, marketIds);

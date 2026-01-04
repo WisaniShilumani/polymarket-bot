@@ -56,7 +56,6 @@ const recalculateWithLikelyFillPrices = async (
       yesPrice,
       noPrice,
       spread: m.spread,
-      daysToExpiry: Math.abs(differenceInDays(new Date(m.endDate), new Date())),
     };
   });
 
@@ -109,7 +108,6 @@ export const executeArbitrageOrders = async (
     noTokenId: JSON.parse(m.clobTokenIds as unknown as string)[1] as string,
     question: m.question,
     price: useYesStrategy ? parseFloat(m.lastTradePrice) || 0.5 : 1 - (parseFloat(m.lastTradePrice) || 0.5),
-    daysToExpiry: Math.abs(differenceInDays(new Date(m.endDate), new Date())),
   }));
 
   if (!validateOrder(selectedBundle, availableCollateral, orderCost, marketsForOrders, activeMarkets, opportunity.eventId)) return defaultResult;

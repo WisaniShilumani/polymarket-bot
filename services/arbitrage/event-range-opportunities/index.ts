@@ -24,7 +24,6 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
       yesPrice: parseFloat(m.lastTradePrice) || 0.5,
       noPrice: 1 - (parseFloat(m.lastTradePrice) || 0.5),
       spread: m.spread,
-      daysToExpiry: Math.abs(differenceInDays(new Date(m.endDate), new Date())),
     }));
 
   const totalYesProbability = marketsForAnalysis.reduce((sum, m) => sum + m.yesPrice, 0);
@@ -52,7 +51,6 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
       yesPrice: parseFloat(m.lastTradePrice) || 0.5,
       noPrice: 1 - (parseFloat(m.lastTradePrice) || 0.5),
       spread: m.spread,
-      daysToExpiry: Math.abs(differenceInDays(new Date(m.endDate), new Date())),
     })),
     result: {
       ...result,

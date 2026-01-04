@@ -9,14 +9,12 @@ export const buildLatencyArb = (subset: Market, superset: Market, size = 1): Lat
       side: MarketSide.Yes,
       price: subset.yesPrice,
       size,
-      daysToExpiry: subset.daysToExpiry,
     },
     {
       marketId: superset.marketId,
       side: MarketSide.No,
       price: 1 - superset.yesPrice,
       size,
-      daysToExpiry: superset.daysToExpiry,
     },
   ];
 

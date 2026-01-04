@@ -1,6 +1,5 @@
 import { MarketSide } from '../../../common/enums';
 import type { ArbitrageResult, Market, Position } from '../../../common/types';
-import { formatCurrency } from '../../accounting';
 import { checkArbitrage } from '../arbitrage';
 
 interface MutuallyExclusiveArbResult {
@@ -17,7 +16,6 @@ export const checkMutuallyExclusiveArbitrage = (markets: Market[], stakePerMarke
     side: MarketSide.Yes,
     price: m.yesPrice,
     size: stakePerMarket,
-    daysToExpiry: m.daysToExpiry,
   }));
 
   // Strategy 2: Buy NO on all
@@ -26,7 +24,6 @@ export const checkMutuallyExclusiveArbitrage = (markets: Market[], stakePerMarke
     side: MarketSide.No,
     price: 1 - m.yesPrice,
     size: stakePerMarket,
-    daysToExpiry: m.daysToExpiry,
   }));
 
   const yesArbitrage = checkArbitrage(yesPositions);

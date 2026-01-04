@@ -18,6 +18,5 @@ export const checkArbitrage = (positions: Position[]): ArbitrageResult => {
     worstCaseProfit,
     cost,
     minPayout,
-    daysToExpiry: positions[0]?.daysToExpiry ?? 7,
   };
 };

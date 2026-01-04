@@ -1,3 +1,4 @@
+import { differenceInDays } from 'date-fns';
 import type { ArbitrageResult, MarketForOrder, PolymarketMarket } from '../../../common/types';
 import { MAX_ORDER_COST, MIN_PROFIT_THRESHOLD, MIN_ROI_THRESHOLD } from '../../../config';
 import { formatCurrency } from '../../../utils/accounting';
@@ -11,7 +12,8 @@ export const validateOrder = (
   activeMarkets: PolymarketMarket[],
   eventId: string,
 ) => {
-  const minimumProfit = +(MIN_PROFIT_THRESHOLD * Math.min(selectedBundle.daysToExpiry, 3)).toFixed(4); // accept bets with decent returns after 4 days
+  const daysToExpiry = activeMarkets[0]?.endDate ? Math.abs(differenceInDays(new Date(activeMarkets[0].endDate), new Date())) : 7;
+  const minimumProfit = +(MIN_PROFIT_THRESHOLD * Math.min(daysToExpiry, 3)).toFixed(4); // accept bets with decent returns after 4 days
   if (!selectedBundle || selectedBundle.worstCaseProfit < minimumProfit) {
     logger.warn(
       `  ⚠️ [${eventId}] Profit ${formatCurrency(selectedBundle?.worstCaseProfit ?? 0)} is below minimum threshold of ${formatCurrency(

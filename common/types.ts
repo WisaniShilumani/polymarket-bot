@@ -6,7 +6,6 @@ export interface Market {
   yesPrice: number;
   noPrice: number;
   spread: number;
-  daysToExpiry: number;
   slug?: string;
 }
 
@@ -15,7 +14,6 @@ export interface Position {
   side: MarketSide;
   price: number; // entry price
   size: number; // number of shares
-  daysToExpiry: number;
 }
 
 export interface ArbitrageResult {
@@ -23,7 +21,6 @@ export interface ArbitrageResult {
   worstCaseProfit: number;
   cost: number;
   minPayout: number;
-  daysToExpiry: number;
 }
 
 export interface LatencyArbResult {
@@ -70,7 +67,6 @@ export interface MarketForOrder {
   noTokenId: string;
   question: string;
   price: number;
-  daysToExpiry: number;
 }
 
 interface Tag {
