@@ -1,5 +1,5 @@
 import type { PolymarketMarket } from '../../../common/types';
-import { DEFAULT_MIN_ORDER_SIZE, MAX_ORDER_COST, MIN_LIQUIDITY } from '../../../config';
+import { DEFAULT_MIN_ORDER_SIZE, MAX_ORDER_COST } from '../../../config';
 import logger from '../../../utils/logger';
 import { getMarketsFromRest } from '../../polymarket/markets';
 
@@ -19,9 +19,11 @@ interface MarketSimpleArbitrageOpportunity {
  * Checks if a market has a simple arbitrage opportunity (YES + NO < 1)
  */
 const checkMarketForSimpleArbitrage = (market: PolymarketMarket): MarketSimpleArbitrageOpportunity | null => {
-  if (market.liquidityNum < MIN_LIQUIDITY) return null;
+  const lastTradePrice = parseFloat(market.lastTradePrice);
+  const outcomePrices = JSON.parse(market.outcomePrices);
+  const noOutcomePrice = parseFloat(outcomePrices[1]);
   const yesPrice = parseFloat(market.bestAsk) || parseFloat(market.lastTradePrice) || 0;
-  const noPrice = 1 - (parseFloat(market.bestBid) || parseFloat(market.lastTradePrice) || 0);
+  const noPrice = 1 - (parseFloat(market.bestBid) || 1 - noOutcomePrice || parseFloat(market.lastTradePrice) || 0);
   const totalCostPerShare = yesPrice + noPrice;
   if (totalCostPerShare >= 1 || yesPrice === 0 || noPrice === 0) return null;
   const orderMinSize = market.orderMinSize ?? DEFAULT_MIN_ORDER_SIZE;
@@ -33,9 +35,16 @@ const checkMarketForSimpleArbitrage = (market: PolymarketMarket): MarketSimpleAr
   const yesCost = shares * yesPrice;
   const noCost = shares * noPrice;
   const totalCost = yesCost + noCost;
+  const totalPrice = yesPrice + noPrice;
   // Calculate guaranteed payout and profit
   const guaranteedPayout = shares; // You get 1 share worth $1
   const guaranteedProfit = guaranteedPayout - totalCost;
+
+  if (totalPrice < 0.99) {
+    const yesSpread = yesPrice - lastTradePrice;
+    console.log(JSON.stringify({ totalPrice, yesSpread, question: market.question, yesPrice, noPrice, lastTradePrice }));
+    console.log(`https://gamma-api.polymarket.com/markets/${market.id}`);
+  }
   // Must have positive profit
   if (guaranteedProfit <= 0) return null;
   const roi = (guaranteedProfit / totalCost) * 100;

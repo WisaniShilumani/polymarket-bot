@@ -1,13 +1,15 @@
-import { Side } from '@polymarket/clob-client';
+import { Side, type OpenOrder } from '@polymarket/clob-client';
 import { getClobClient } from '..';
 import logger from '../../../utils/logger';
 import type { OrderParams, OrderResult, ArbitrageOrderParams } from './types';
+import { ORDERS_ENABLED } from '../../../config';
 
 /**
  * Creates and posts a single order to Polymarket
  */
 export const createOrder = async (params: OrderParams): Promise<OrderResult> => {
   try {
+    if (!ORDERS_ENABLED) return { success: false, error: 'ORDERS_ENABLED is disabled' };
     const clobClient = await getClobClient();
     const side = params.side === 'BUY' ? Side.BUY : Side.SELL;
     const response = await clobClient.createAndPostOrder({
@@ -55,4 +57,11 @@ export const createArbitrageOrders = async (params: ArbitrageOrderParams): Promi
   const successCount = results.filter((r) => r.success).length;
   logger.info(`\n📊 Orders completed: ${successCount}/${params.markets.length} successful`);
   return results;
+};
+
+export const getOpenOrders = async (): Promise<OpenOrder[]> => {
+  const clobClient = await getClobClient();
+  const orders = await clobClient.getOpenOrders();
+  console.log('orders=', orders);
+  return orders;
 };

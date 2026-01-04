@@ -73,7 +73,6 @@ export const areBetsMutuallyExclusive = async (bets: string, eventId: string): P
   // Check cache first
   const cachedResult = mutuallyExclusiveCache.get(eventId);
   if (cachedResult !== undefined) {
-    logger.debug(`Cache hit for event ID: ${eventId}`);
     return cachedResult;
   }
 

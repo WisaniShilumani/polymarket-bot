@@ -3,7 +3,6 @@ import { getAccountCollateralBalance } from '../../polymarket/account-balance';
 import logger from '../../../utils/logger';
 import { MIN_PROFIT_THRESHOLD, MAX_ORDER_COST, MIN_ROI_THRESHOLD } from '../../../config';
 import { formatCurrency } from '../../../utils/accounting';
-import { appendEventToOrdersFile } from '../existing-orders';
 import { createArbitrageOrders } from '../../polymarket/oders';
 
 /**
@@ -80,10 +79,5 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
   });
 
   const ordersPlaced = orderResults.some((result) => result.success);
-  if (ordersPlaced) {
-    appendEventToOrdersFile(opportunity.eventId);
-    return true;
-  }
-
   return false;
 };

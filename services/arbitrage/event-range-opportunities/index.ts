@@ -5,15 +5,15 @@ import { rangeArbitrage } from '../../../utils/math/range-arbitrage';
 import { areBetsMutuallyExclusive } from '../../openai';
 import { getEventsFromRest } from '../../polymarket/events';
 import { executeArbitrageOrders } from '../order-execution';
-import { getHeldEventIds } from '../existing-orders';
 import { calculateNormalizedShares } from './utils';
+import { getTrades } from '../../polymarket/trade-history';
+import { getOpenOrders } from '../../polymarket/oders';
+import { getAccountCollateralBalance } from '../../polymarket/account-balance';
 
 /**
  * Checks a single event for range arbitrage opportunities
  */
 const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<EventRangeArbitrageOpportunity | null> => {
-  const heldEventIds = getHeldEventIds();
-  if (heldEventIds.has(event.id)) return null;
   const activeMarkets = event.markets.filter((m) => !m.closed);
   if (!activeMarkets || activeMarkets.length < 2) return null;
   const hasLowLiquidityMarket = activeMarkets.some((m) => m.liquidityNum < MIN_LIQUIDITY);
@@ -75,11 +75,13 @@ export const scanEventsForRangeArbitrage = async (
   logger.header('╚════════════════════════════════════════════════════════════════╝\n');
 
   let hasMoreEvents = true;
-
   while (hasMoreEvents) {
     try {
       logger.progress(`Scanning events ${offset} to ${offset + limit}...`);
-      const events = await getEventsFromRest({ offset, limit, closed: false });
+      const [events, trades, openOrders] = await Promise.all([getEventsFromRest({ offset, limit, closed: false }), getTrades(), getOpenOrders()]);
+      const tradeMarketIds = trades.map((t) => t.market);
+      const openOrderMarketIds = openOrders.map((o) => o.market);
+      const existingMarketIds = new Set([...tradeMarketIds, ...openOrderMarketIds]);
       if (events.length === 0) {
         logger.info('No more events to scan.');
         hasMoreEvents = false;
@@ -88,6 +90,11 @@ export const scanEventsForRangeArbitrage = async (
 
       let foundInBatch = 0;
       for (const event of events) {
+        const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
+        if (hasTrade) {
+          logger.warn(`Event ${event.id} has trade in market for ${event.title}, skipping...`);
+          continue;
+        }
         const opportunity = await checkEventForRangeArbitrage(event);
         if (opportunity) {
           opportunities.push(opportunity);

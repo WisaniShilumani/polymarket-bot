@@ -29,6 +29,7 @@ export interface LatencyArbResult {
 
 export interface PolymarketMarket {
   id: string;
+  outcomePrices: string;
   question: string;
   description?: string;
   slug: string;
@@ -53,6 +54,7 @@ export interface PolymarketMarket {
   events?: any[];
   categories?: any[];
   tags?: any[];
+  sportsMarketType?: string;
 }
 
 export interface PolymarketEvent {

@@ -1,4 +1,5 @@
 import type { GetMarketsOptions, PolymarketMarket } from '../../../common/types';
+import { MIN_LIQUIDITY } from '../../../config';
 import logger from '../../../utils/logger';
 import { buildMarketsUrl } from '../utils';
 
@@ -19,7 +20,12 @@ export const getMarketsFromRest = async (options: GetMarketsOptions = {}, retrie
       throw new Error(`Failed to fetch markets: ${response.status} ${response.statusText}`);
     }
 
-    const markets: PolymarketMarket[] = await response.json();
+    let markets: PolymarketMarket[] = await response.json();
+    markets = markets.filter((m) => {
+      if (m.liquidityNum < MIN_LIQUIDITY) return false;
+      const isSportsMarket = ['moneyline', 'tennis_match_totals'].includes(m.sportsMarketType ?? '');
+      return !isSportsMarket;
+    });
     return markets;
   } catch (error) {
     logger.error('Error fetching markets from Polymarket API:', error);
