@@ -7,8 +7,8 @@ export const POLYMARKET_API_URL = process.env.POLYMARKET_API_URL || 'https://gam
 export const POLYMARKET_CLOB_URL = process.env.POLYMARKET_CLOB_URL || 'https://clob.polymarket.com';
 // Order configuration
 export const ORDERS_ENABLED = process.env.ORDERS_ENABLED === 'true';
-export const MIN_LIQUIDITY = parseFloat(process.env.MIN_LIQUIDITY || '10000');
 export const MAX_ORDER_COST = parseFloat(process.env.MAX_ORDER_COST || '5');
+export const MIN_LIQUIDITY = MAX_ORDER_COST * 100;
 export const MIN_ROI_THRESHOLD = parseFloat(process.env.MIN_ROI_THRESHOLD || '1.01');
 export const MIN_PROFIT_THRESHOLD = parseFloat(process.env.MIN_PROFIT_THRESHOLD || '0.01');
 export const DEFAULT_MIN_ORDER_SIZE = parseInt(process.env.DEFAULT_MIN_ORDER_SIZE || '5');

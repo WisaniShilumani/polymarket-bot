@@ -75,6 +75,7 @@ export const scanEventsForRangeArbitrage = async (
   logger.header('╚════════════════════════════════════════════════════════════════╝\n');
 
   let hasMoreEvents = true;
+  let ordersPlaced = false;
   while (hasMoreEvents) {
     try {
       logger.progress(`Scanning events ${offset} to ${offset + limit}...`);
@@ -90,6 +91,7 @@ export const scanEventsForRangeArbitrage = async (
       }
 
       let foundInBatch = 0;
+
       for (const event of events) {
         const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
         if (hasTrade) continue;
@@ -100,10 +102,7 @@ export const scanEventsForRangeArbitrage = async (
           foundInBatch++;
           logger.success(`  ✅ Found: [${opportunity.eventId}] ${opportunity.eventTitle} - ${opportunity.markets.length} markets`);
           const orderPlaced = await executeArbitrageOrders(opportunity, totalOpenOrderValue);
-          if (orderPlaced) {
-            logger.success(`\n✅ Orders placed successfully! Stopping scan.\n`);
-            return { opportunities, ordersPlaced: true };
-          }
+          if (orderPlaced) ordersPlaced = true;
         }
       }
 
@@ -112,6 +111,11 @@ export const scanEventsForRangeArbitrage = async (
       logger.error('Error scanning events:', error);
       throw error;
     }
+  }
+
+  if (ordersPlaced) {
+    logger.success(`\n✅ Orders placed successfully!`);
+    return { opportunities, ordersPlaced: true };
   }
 
   return { opportunities, ordersPlaced: false };
