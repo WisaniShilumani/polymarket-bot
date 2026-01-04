@@ -5,6 +5,7 @@ export interface Market {
   question: string;
   yesPrice: number;
   spread: number;
+  daysToExpiry: number;
   slug?: string;
 }
 
@@ -13,6 +14,7 @@ export interface Position {
   side: MarketSide;
   price: number; // entry price
   size: number; // number of shares
+  daysToExpiry: number;
 }
 
 export interface ArbitrageResult {
@@ -20,6 +22,7 @@ export interface ArbitrageResult {
   worstCaseProfit: number;
   cost: number;
   minPayout: number;
+  daysToExpiry: number;
 }
 
 export interface LatencyArbResult {
@@ -58,6 +61,7 @@ export interface PolymarketMarket {
   tags?: any[];
   sportsMarketType?: string;
   spread: number;
+  endDate: string;
 }
 
 interface Tag {

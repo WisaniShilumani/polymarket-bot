@@ -1,5 +1,4 @@
 import { displayTopOpportunities } from './logger';
-import logger from '../../utils/logger';
 import { scanEventsForRangeArbitrage } from './event-range-opportunities';
 
 export const findAndAnalyzeArbitrage = async (): Promise<boolean> => {

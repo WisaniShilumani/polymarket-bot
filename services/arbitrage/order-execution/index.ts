@@ -1,4 +1,4 @@
-import type { EventRangeArbitrageOpportunity } from '../../../common/types';
+import type { EventRangeArbitrageOpportunity, Market, PolymarketMarket } from '../../../common/types';
 import { getAccountCollateralBalance } from '../../polymarket/account-balance';
 import logger from '../../../utils/logger';
 import { MIN_PROFIT_THRESHOLD, MAX_ORDER_COST, MIN_ROI_THRESHOLD } from '../../../config';
@@ -6,6 +6,80 @@ import { formatCurrency } from '../../../utils/accounting';
 import { createArbitrageOrders } from '../../polymarket/orders';
 import { getOrderBookDepth } from '../../polymarket/book-depth';
 import { Side } from '@polymarket/clob-client';
+import { rangeArbitrage } from '../../../utils/math/range-arbitrage';
+import { differenceInDays } from 'date-fns';
+
+interface MarketForOrder {
+  tokenId: string;
+  question: string;
+  price: number;
+  daysToExpiry: number;
+}
+
+interface RecalculationResult {
+  success: boolean;
+  adjustedPrices?: number[];
+}
+
+/**
+ * Recalculates arbitrage using actual fill prices from order book depth.
+ * Returns adjusted prices if arbitrage is still profitable, null otherwise.
+ */
+const recalculateWithLikelyFillPrices = async (
+  marketsForOrders: MarketForOrder[],
+  activeMarkets: PolymarketMarket[],
+  normalizedShares: number,
+  useYesStrategy: boolean,
+): Promise<RecalculationResult> => {
+  const likelyFillPricesPromises = marketsForOrders.map(async (market) => {
+    const depthCheck = await getOrderBookDepth(market.tokenId, Side.BUY, normalizedShares, 1.0);
+    return { avgFillPrice: depthCheck.avgFillPrice, canFill: depthCheck.totalAvailable >= normalizedShares };
+  });
+
+  const likelyFillPrices = await Promise.all(likelyFillPricesPromises);
+  const allHavePrices = likelyFillPrices.every((r) => r.canFill && r.avgFillPrice > 0);
+  if (!allHavePrices) {
+    return { success: false };
+  }
+
+  const marketsWithAdjustedPrices: Market[] = activeMarkets.map((m, index) => {
+    const likelyFillPrice = likelyFillPrices[index];
+    const fillPrice = likelyFillPrice?.avgFillPrice ?? 0;
+    const yesPrice = useYesStrategy ? fillPrice : 1 - fillPrice;
+    return {
+      marketId: m.id,
+      question: m.question,
+      yesPrice,
+      spread: m.spread,
+      daysToExpiry: Math.abs(differenceInDays(new Date(m.endDate), new Date())),
+    };
+  });
+
+  const recalculatedResult = rangeArbitrage(marketsWithAdjustedPrices, 1);
+  const recalculatedBundle = useYesStrategy ? recalculatedResult.arbitrageBundles[0] : recalculatedResult.arbitrageBundles[1];
+  if (!recalculatedBundle || !recalculatedBundle.isArbitrage) {
+    return { success: false };
+  }
+
+  const minimumProfit = MIN_PROFIT_THRESHOLD * recalculatedBundle.daysToExpiry;
+  if (recalculatedBundle.worstCaseProfit < minimumProfit) {
+    logger.warn(
+      `  ⚠️ Recalculated profit $${recalculatedBundle.worstCaseProfit.toFixed(4)} is below minimum threshold of $${minimumProfit}, skipping order creation`,
+    );
+    return { success: false };
+  }
+
+  const recalculatedRoi = (recalculatedBundle.worstCaseProfit / recalculatedBundle.cost) * 100;
+  if (recalculatedRoi < MIN_ROI_THRESHOLD) {
+    logger.warn(`  ⚠️ Recalculated ROI ${recalculatedRoi.toFixed(2)}% is below minimum threshold of ${MIN_ROI_THRESHOLD}%, skipping order creation`);
+    return { success: false };
+  }
+
+  return {
+    success: true,
+    adjustedPrices: likelyFillPrices.map((p) => p.avgFillPrice),
+  };
+};
 
 /**
  * Executes arbitrage orders for a given opportunity
@@ -32,11 +106,9 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
     0,
   );
 
-  // Check minimum profit threshold of $0.01
-  if (!selectedBundle || selectedBundle.worstCaseProfit < MIN_PROFIT_THRESHOLD) {
-    logger.warn(
-      `  ⚠️ Profit $${selectedBundle?.worstCaseProfit.toFixed(4) ?? '0'} is below minimum threshold of $${MIN_PROFIT_THRESHOLD}, skipping order creation`,
-    );
+  const minimumProfit = MIN_PROFIT_THRESHOLD * selectedBundle.daysToExpiry;
+  if (!selectedBundle || selectedBundle.worstCaseProfit < minimumProfit) {
+    logger.warn(`  ⚠️ Profit $${selectedBundle?.worstCaseProfit.toFixed(4) ?? '0'} is below minimum threshold of $${minimumProfit}, skipping order creation`);
     return false;
   }
 
@@ -61,6 +133,7 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
     tokenId: JSON.parse(m.clobTokenIds as unknown as string)[tokenIndex] as string,
     question: m.question,
     price: useYesStrategy ? parseFloat(m.lastTradePrice) || 0.5 : 1 - (parseFloat(m.lastTradePrice) || 0.5),
+    daysToExpiry: Math.abs(differenceInDays(new Date(m.endDate), new Date())),
   }));
 
   if (marketsWithTokens.length === 0) {
@@ -73,20 +146,29 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
     return false;
   }
 
-  // Check if the order book depth is sufficient
-  const canFillPromises = marketsForOrders.map(async (market) => {
+  // Check if the order book depth is sufficient and get likely fill prices
+  const depthCheckPromises = marketsForOrders.map(async (market) => {
     const depthCheck = await getOrderBookDepth(market.tokenId, Side.BUY, result.normalizedShares, market.price);
-    return depthCheck.canFill;
+    return { market, depthCheck };
   });
 
-  const canFill = await Promise.all(canFillPromises);
-  const canFillAll = canFill.every((c) => c);
+  const depthResults = await Promise.all(depthCheckPromises);
+  const canFillAll = depthResults.every((r) => r.depthCheck.canFill);
   if (!canFillAll) {
-    // logger.warn(`  ⚠️ Not enough order book depth to fill all orders, skipping order creation`);
-    return false;
+    const hasLiquidity = depthResults.every((r) => r.depthCheck.totalAvailable >= result.normalizedShares);
+    if (!hasLiquidity) return false;
+    const recalculation = await recalculateWithLikelyFillPrices(marketsForOrders, activeMarkets, result.normalizedShares, useYesStrategy);
+    if (!recalculation.success || !recalculation.adjustedPrices) return false;
+    marketsForOrders.forEach((market, index) => {
+      market.price = recalculation.adjustedPrices?.[index] || market.price;
+    });
+
+    const adjustedOrderCost = marketsForOrders.reduce((sum, m) => sum + m.price * result.normalizedShares, 0);
+    logger.money(`\n💰 Executing ${strategy} arbitrage (adjusted prices) on event: ${opportunity.eventTitle} for ${formatCurrency(adjustedOrderCost)}`);
+  } else {
+    logger.money(`\n💰 Executing ${strategy} arbitrage on event: ${opportunity.eventTitle} for ${formatCurrency(orderCost)}`);
   }
 
-  logger.money(`\n💰 Executing ${strategy} arbitrage on event: ${opportunity.eventTitle} for ${formatCurrency(orderCost)}`);
   const orderResults = await createArbitrageOrders({
     eventId: opportunity.eventId,
     markets: marketsForOrders,

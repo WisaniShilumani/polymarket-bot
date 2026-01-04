@@ -8,6 +8,7 @@ import { executeArbitrageOrders } from '../order-execution';
 import { calculateNormalizedShares, isObviousMutuallyExclusive } from './utils';
 import { getTrades } from '../../polymarket/trade-history';
 import { getOpenOrders } from '../../polymarket/orders';
+import { differenceInDays } from 'date-fns';
 
 /**
  * Checks a single event for range arbitrage opportunities
@@ -22,6 +23,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
       question: m.question,
       yesPrice: parseFloat(m.lastTradePrice) || 0.5,
       spread: m.spread,
+      daysToExpiry: Math.abs(differenceInDays(new Date(m.endDate), new Date())),
     }));
 
   const totalYesProbability = marketsForAnalysis.reduce((sum, m) => sum + m.yesPrice, 0);
@@ -48,6 +50,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
       question: m.question,
       yesPrice: parseFloat(m.lastTradePrice) || 0.5,
       spread: m.spread,
+      daysToExpiry: Math.abs(differenceInDays(new Date(m.endDate), new Date())),
     })),
     result: {
       ...result,

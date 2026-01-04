@@ -1,9 +1,9 @@
-import { addDays, subDays } from 'date-fns';
+import { addDays, addMinutes, subDays } from 'date-fns';
 import type { GetEventsOptions, GetMarketsOptions } from '../../common/types';
 import { POLYMARKET_API_URL } from '../../config';
 
 export const buildEventsUrl = (options: GetEventsOptions = {}) => {
-  const today = new Date().toISOString();
+  const today = addMinutes(new Date(), 5).toISOString();
   const startDate = new Date(new Date().setMonth(new Date().getMonth() - 8)).toISOString();
   const maxEndDate = addDays(new Date(), 20).toISOString();
   const { limit = 100, offset = 0, closed = false } = options;

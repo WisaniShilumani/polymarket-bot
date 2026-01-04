@@ -2,7 +2,6 @@ import type { ArbitrageResult, Market, Position } from '../../../common/types';
 import { MarketSide } from '../../../common/enums';
 import { getTotalCost } from '../cost';
 import { getPayout } from '../payout';
-import { formatCurrency } from '../../accounting';
 
 interface RangeArbitrageResult {
   arbitrageBundles: ArbitrageResult[];
@@ -23,6 +22,7 @@ export function checkMutuallyExclusiveArbitrage(positions: Position[], marketIds
     worstCaseProfit,
     cost,
     minPayout,
+    daysToExpiry: positions[0]?.daysToExpiry ?? 7,
   };
 }
 
@@ -35,6 +35,7 @@ export const rangeArbitrage = (markets: Market[], stakePerMarket = 1): RangeArbi
     side: MarketSide.Yes,
     price: m.yesPrice,
     size: stakePerMarket,
+    daysToExpiry: m.daysToExpiry,
   }));
 
   // Strategy B: Buy NO on all ranges
@@ -43,6 +44,7 @@ export const rangeArbitrage = (markets: Market[], stakePerMarket = 1): RangeArbi
     side: MarketSide.No,
     price: 1 - m.yesPrice,
     size: stakePerMarket,
+    daysToExpiry: m.daysToExpiry,
   }));
 
   const yesArbitrage = checkMutuallyExclusiveArbitrage(yesPositions, marketIds);

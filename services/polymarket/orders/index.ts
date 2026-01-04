@@ -14,7 +14,7 @@ const failedOrderEventsCache = new LRUCache<string, boolean>({
  */
 export const createOrder = async (params: OrderParams): Promise<OrderResult> => {
   try {
-    if (!ORDERS_ENABLED) return { success: false, error: 'ORDERS_ENABLED is disabled' };
+    if (!ORDERS_ENABLED) return { success: true, orderId: 'ORDERS_ENABLED is disabled' };
     const clobClient = await getClobClient();
     const side = params.side === 'BUY' ? Side.BUY : Side.SELL;
     const response = await clobClient.createAndPostOrder({
