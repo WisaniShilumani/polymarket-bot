@@ -1,0 +1,37 @@
+# .ebignore - Controls what gets deployed to Elastic Beanstalk
+# Unlike .gitignore, we WANT to include node_modules and dist
+
+# Environment and secrets
+.env
+.env.*
+
+# Git
+.git
+.gitignore
+
+# IDE/Editor
+.DS_Store
+.idea
+.vscode
+*.swp
+
+# Logs
+*.log
+eb-engine.log
+web.stdout.log
+
+# TypeScript source (we deploy compiled dist/)
+*.ts
+!*.d.ts
+tsconfig.json
+
+# Development files
+.ebextensions/*.md
+*.md
+todo.txt
+jest.config.*
+
+# Local artifacts
+ARBITRAGE_OPPORTUNITIES.txt
+MUTUALLY_EXCLUSIVE.txt
+

@@ -40,11 +40,14 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install all dependencies (needed for build)
         run: npm ci
 
       - name: Build application
         run: npm run build
+
+      - name: Remove devDependencies (smaller deployment)
+        run: npm ci --omit=dev
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
