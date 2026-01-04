@@ -1,19 +1,17 @@
 import 'dotenv/config';
 import logger from './utils/logger';
-import { displayMarketSimpleArbitrageResults } from './services/arbitrage/utils';
-import { scanMarketsForSimpleArbitrage } from './services/arbitrage';
-import { getAccountCollateralBalance } from './services/polymarket';
+import { displayMarketSimpleArbitrageResults } from './services/arbitrage/logger';
+import { scanMarketsForSimpleArbitrage } from './services/arbitrage/market-simple-opportunities';
+import { getAccountCollateralBalance } from './services/polymarket/account-balance';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot...');
 
 async function main() {
   let opportunitiesFound = false;
   const collateralBalance = await getAccountCollateralBalance();
-  console.log({ collateralBalance });
   while (!opportunitiesFound) {
-    const marketOpportunities = await scanMarketsForSimpleArbitrage({ limit: 5000 }, collateralBalance);
+    const marketOpportunities = await scanMarketsForSimpleArbitrage({ limit: 500 }, collateralBalance);
     displayMarketSimpleArbitrageResults(marketOpportunities);
-    console.log({ marketOpportunities });
     opportunitiesFound = marketOpportunities.length > 0;
     if (!opportunitiesFound) {
       logger.warn('\n⏳ No opportunities found. Waiting 3 seconds before next scan...\n');

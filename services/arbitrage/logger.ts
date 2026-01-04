@@ -1,4 +1,4 @@
-import type { EventRangeArbitrageOpportunity, MarketSimpleArbitrageOpportunity } from '../../common/types';
+import type { EventRangeArbitrageOpportunity, Market, MarketSimpleArbitrageOpportunity } from '../../common/types';
 import logger from '../../utils/logger';
 
 export const displayMarketSimpleArbitrageResults = (opportunities: MarketSimpleArbitrageOpportunity[]) => {
@@ -88,9 +88,7 @@ export const displayEventRangeArbitrageResults = (opportunities: EventRangeArbit
             logger.info(`\n     Bundle ${idx + 1}:`);
             logger.success(`       ✅ Is Arbitrage: ${bundle.isArbitrage}`);
             logger.money(`       💰 Worst Case Profit: $${bundle.worstCaseProfit.toFixed(2)}`);
-            logger.money(
-              `       💵 Total Cost: $${bundle.cost.toFixed(2)} (${normalizedShares.toFixed(2)} shares, min $1/order)`,
-            );
+            logger.money(`       💵 Total Cost: $${bundle.cost.toFixed(2)} (${normalizedShares.toFixed(2)} shares, min $1/order)`);
             logger.info(`       📊 Min Payout: $${bundle.minPayout.toFixed(2)}`);
             logger.success(`       📈 ROI: ${((bundle.worstCaseProfit / bundle.cost) * 100).toFixed(2)}%`);
           }
@@ -104,10 +102,7 @@ export const displayEventRangeArbitrageResults = (opportunities: EventRangeArbit
   }
 };
 
-export const displayTopOpportunities = (
-  eventOpps: EventRangeArbitrageOpportunity[],
-  marketOpps: MarketSimpleArbitrageOpportunity[],
-) => {
+export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunity[], marketOpps: MarketSimpleArbitrageOpportunity[]) => {
   if (!eventOpps.length && !marketOpps.length) return logger.warn('No opportunities found.\n');
   logger.log('\n\n');
   logger.header('╔════════════════════════════════════════════════════════════════╗');
@@ -157,9 +152,7 @@ export const displayTopOpportunities = (
         marketId: opp.markets[0]?.marketId || '',
         bets: opp.markets.map((m) => {
           const orderCost = normalizedShares * m.yesPrice;
-          return `Buy YES on "${m.question}" for $${orderCost.toFixed(2)} (${normalizedShares.toFixed(2)} shares @ ${(
-            m.yesPrice * 100
-          ).toFixed(2)}%)`;
+          return `Buy YES on "${m.question}" for $${orderCost.toFixed(2)} (${normalizedShares.toFixed(2)} shares @ ${(m.yesPrice * 100).toFixed(2)}%)`;
         }),
         url: `https://polymarket.com/event/${opp.eventSlug}`,
       });
@@ -196,11 +189,7 @@ export const displayTopOpportunities = (
 
   topOpportunities.slice(0, 10).forEach((opp, index) => {
     logger.highlight(`${index + 1}. ${opp.question}`);
-    logger.info(
-      `   Type: ${opp.type} | ROI: ${opp.roi.toFixed(2)}% | Profit: $${opp.profit.toFixed(
-        2,
-      )} | Cost: $${opp.cost.toFixed(2)}`,
-    );
+    logger.info(`   Type: ${opp.type} | ROI: ${opp.roi.toFixed(2)}% | Profit: $${opp.profit.toFixed(2)} | Cost: $${opp.cost.toFixed(2)}`);
     logger.info(`   URL: ${opp.url}`);
     logger.debug(`   API: https://gamma-api.polymarket.com/markets/${opp.marketId}`);
     logger.log('   Bets to place:');
@@ -226,4 +215,16 @@ export const displayTopOpportunities = (
   logger.success(`Average ROI: ${avgROI.toFixed(2)}%`);
   logger.success(`Best ROI: ${allOpportunities[0]?.roi.toFixed(2)}%`);
   logger.log('');
+};
+
+/**
+ * Calculates the minimum shares needed so each order meets the minimum
+ * Uses the orderMinSize from the market data
+ */
+export const calculateNormalizedShares = (markets: Market[], forYesStrategy: boolean, orderMinSize: number): number => {
+  const prices = markets.map((m) => (forYesStrategy ? m.yesPrice : 1 - m.yesPrice));
+  const minPrice = Math.min(...prices.filter((p) => p > 0));
+  if (minPrice <= 0) return orderMinSize;
+  const sharesNeeded = 1 / minPrice;
+  return Math.max(orderMinSize, Math.ceil(sharesNeeded * 100) / 100);
 };

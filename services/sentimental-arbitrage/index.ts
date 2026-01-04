@@ -1,6 +1,7 @@
-import { getEventsFromRest } from '../polymarket';
+import { getEventsFromRest } from '../polymarket/events';
 import type { PolymarketEvent } from '../../common/types';
 import logger from '../../utils/logger';
+import { ARBITRAGE_DETECTION_BOT_URL } from '../../config';
 
 const BATCH_SIZE = 500;
 
@@ -27,7 +28,7 @@ interface SentimentalArbitrageResponse {
  * Sends events to the sentimental arbitrage detection API in batches
  */
 const sendEventsForArbitrageDetection = async (events: EventPayload[]): Promise<IOpportunity[]> => {
-  const webhookUrl = process.env.ARBITRAGE_DETECTION_BOT_URL;
+  const webhookUrl = ARBITRAGE_DETECTION_BOT_URL;
 
   if (!webhookUrl) {
     throw new Error('ARBITRAGE_DETECTION_BOT_URL environment variable is not set');
@@ -73,9 +74,7 @@ export const findSentimentalArbitrage = async (): Promise<void> => {
     let allOpportunities: IOpportunity[] = [];
     let scannedEvents: PolymarketEvent[] = [];
 
-    logger.info(
-      `Fetching events from Polymarket and checking for arbitrage (target: ${MAX_OPPORTUNITIES} opportunities)...\n`,
-    );
+    logger.info(`Fetching events from Polymarket and checking for arbitrage (target: ${MAX_OPPORTUNITIES} opportunities)...\n`);
 
     // Keep fetching and checking until we find 20 opportunities or run out of events
     while (allOpportunities.length < MAX_OPPORTUNITIES) {
@@ -105,9 +104,7 @@ export const findSentimentalArbitrage = async (): Promise<void> => {
       // Add found opportunities to our collection
       if (batchOpportunities.length > 0) {
         allOpportunities.push(...batchOpportunities);
-        logger.success(
-          `  ✅ Found ${batchOpportunities.length} opportunities in this batch! Total: ${allOpportunities.length}/${MAX_OPPORTUNITIES}`,
-        );
+        logger.success(`  ✅ Found ${batchOpportunities.length} opportunities in this batch! Total: ${allOpportunities.length}/${MAX_OPPORTUNITIES}`);
 
         // If we've reached our target, stop
         if (allOpportunities.length >= MAX_OPPORTUNITIES) {
@@ -156,10 +153,7 @@ export const findSentimentalArbitrage = async (): Promise<void> => {
 
         // Display each market
         opportunity.events.forEach((event) => {
-          const question =
-            event.question.length > questionCol - 2
-              ? event.question.substring(0, questionCol - 5) + '...'
-              : event.question;
+          const question = event.question.length > questionCol - 2 ? event.question.substring(0, questionCol - 5) + '...' : event.question;
 
           logger.log(`${question.padEnd(questionCol)} | ${event.id.toString().padEnd(15)}`);
         });

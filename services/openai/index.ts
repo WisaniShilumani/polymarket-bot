@@ -3,9 +3,10 @@ import { LRUCache } from 'lru-cache';
 import logger from '../../utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
+import { OPENAI_API_KEY } from '../../config';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: OPENAI_API_KEY,
 });
 
 const MUTUALLY_EXCLUSIVE_FILE_PATH = path.join(process.cwd(), 'MUTUALLY_EXCLUSIVE.txt');
@@ -259,9 +260,7 @@ Be strict: if the market wording allows ambiguity, treat it as **NOT arbitrage-s
 
   logger.log({ parsed, bets: bets });
   const result = parsed.mutuallyExclusive === 1 && parsed.exhaustive === 1;
-  // Store result in cache
   mutuallyExclusiveCache.set(eventId, result);
-  // Persist result to file
   appendResultToFile(eventId, result);
   return result;
 };

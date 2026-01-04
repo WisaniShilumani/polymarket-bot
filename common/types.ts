@@ -10,6 +10,7 @@ export interface Position {
   marketId: string;
   side: MarketSide;
   price: number; // entry price
+  size: number; // number of shares
 }
 
 export interface ArbitrageResult {
@@ -85,6 +86,15 @@ export interface GetMarketsOptions {
   start_date_max?: string;
   start_date_min?: string;
   exclude_sports?: boolean;
+}
+
+export interface GetEventsOptions {
+  limit?: number;
+  offset?: number;
+  closed?: boolean;
+  exclude_sports?: boolean;
+  end_date_min?: string;
+  start_date_min?: string;
 }
 
 export interface MarketSimpleArbitrageOpportunity {
