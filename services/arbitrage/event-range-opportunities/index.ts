@@ -12,7 +12,7 @@ import { getOpenOrders } from '../../polymarket/orders';
 /**
  * Checks a single event for range arbitrage opportunities
  */
-const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<EventRangeArbitrageOpportunity | null> => {
+const checkEventForRangeArbitrage = async (event: PolymarketEvent, index: number): Promise<EventRangeArbitrageOpportunity | null> => {
   const activeMarkets = event.markets.filter((m) => !m.closed);
   if (!activeMarkets || activeMarkets.length < 2) return null;
   const marketsForAnalysis: Market[] = activeMarkets
@@ -38,7 +38,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
   const betsDescription = '## Title - ' + event.title + '\n' + activeMarkets.map((m, i) => `${i + 1}. ${m.question}`).join('\n');
   const tags = event.tags?.map((t) => t.slug) || [];
   const isObviousExclusiveCase = isObviousMutuallyExclusive(event.title, activeMarkets, tags);
-  const isMutuallyExclusive = isObviousExclusiveCase || (await areBetsMutuallyExclusive(betsDescription, event.id));
+  const isMutuallyExclusive = isObviousExclusiveCase || (await areBetsMutuallyExclusive(betsDescription, event.id, index));
   if (!isMutuallyExclusive) return null;
   return {
     eventId: event.id,
@@ -93,10 +93,10 @@ export const scanEventsForRangeArbitrage = async (
       }
 
       let foundInBatch = 0;
-      const getOpportunities = events.map(async (event) => {
+      const getOpportunities = events.map(async (event, index) => {
         const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
         if (hasTrade) return null;
-        const opportunity = await checkEventForRangeArbitrage(event);
+        const opportunity = await checkEventForRangeArbitrage(event, index);
         return opportunity;
       });
 

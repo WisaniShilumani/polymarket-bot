@@ -48,13 +48,14 @@ const loadCacheFromFile = (): void => {
 /**
  * Appends a result to MUTUALLY_EXCLUSIVE.txt
  */
-const appendResultToFile = (eventId: string, result: boolean): void => {
+const appendResultToFile = async (eventId: string, result: boolean, index: number): Promise<void> => {
   try {
+    await new Promise((resolve) => setTimeout(resolve, index * 100));
     fs.appendFile(MUTUALLY_EXCLUSIVE_FILE_PATH, `${eventId}:${result}\n`, 'utf-8', (err) => {
       if (err) {
         logger.error('Error writing to MUTUALLY_EXCLUSIVE.txt:', err);
       } else {
-        logger.debug(`  📝 Recorded event ${eventId} (${result}) in MUTUALLY_EXCLUSIVE.txt`);
+        logger.debug(`  📝 Recorded event ${eventId} (${result}) in MUTUALLY_EXCLUSIVE.txt after ${index}ms`);
       }
     });
   } catch (error) {
@@ -74,7 +75,7 @@ loadCacheFromFile();
  * @param eventId - The event ID to use as cache key
  * @returns true if the bets are mutually exclusive, false otherwise
  */
-export const areBetsMutuallyExclusive = async (bets: string, eventId: string): Promise<boolean> => {
+export const areBetsMutuallyExclusive = async (bets: string, eventId: string, index: number): Promise<boolean> => {
   // Check cache first
   const cachedResult = mutuallyExclusiveCache.get(eventId);
   if (cachedResult !== undefined) {
@@ -82,6 +83,7 @@ export const areBetsMutuallyExclusive = async (bets: string, eventId: string): P
   }
 
   logger.debug(`Cache miss for event ID: ${eventId}. Checking if bets are mutually exclusive:`);
+
   const response = await openai.chat.completions.create({
     model: 'gpt-4.1-mini',
     messages: [
@@ -249,6 +251,7 @@ Be strict: if the market wording allows ambiguity, treat it as **NOT arbitrage-s
 
   const result = parsed.mutuallyExclusive === 1 && parsed.exhaustive === 1;
   mutuallyExclusiveCache.set(eventId, result);
-  appendResultToFile(eventId, result);
+
+  appendResultToFile(eventId, result, index);
   return result;
 };
