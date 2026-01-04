@@ -92,10 +92,7 @@ export const scanEventsForRangeArbitrage = async (
       let foundInBatch = 0;
       for (const event of events) {
         const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
-        if (hasTrade) {
-          logger.warn(`Event ${event.id} has trade in market for ${event.title}, skipping...`);
-          continue;
-        }
+        if (hasTrade) continue;
         const opportunity = await checkEventForRangeArbitrage(event);
         const hasGoodSpreads = opportunity?.markets.every((m) => m.spread <= MAX_SPREAD);
         if (opportunity && hasGoodSpreads) {
@@ -110,7 +107,6 @@ export const scanEventsForRangeArbitrage = async (
         }
       }
 
-      logger.info(`  Found ${foundInBatch} opportunities in this batch\n`);
       offset += limit;
     } catch (error) {
       logger.error('Error scanning events:', error);
