@@ -27,7 +27,7 @@ async function main() {
       await new Promise((resolve) => setTimeout(resolve, 10000));
       continue;
     }
-    const result = await findAndAnalyzeArbitrage();
+    const result = await findAndAnalyzeArbitrage(availableCollateral);
     if (!result) {
       logger.warn('⏳ No orders placed. Scanning again...\n');
     } else {

@@ -12,7 +12,7 @@ import { getOpenOrders } from '../../polymarket/orders';
 /**
  * Checks a single event for range arbitrage opportunities
  */
-const checkEventForRangeArbitrage = async (event: PolymarketEvent, index: number): Promise<EventRangeArbitrageOpportunity | null> => {
+const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableCollateral: number): Promise<EventRangeArbitrageOpportunity | null> => {
   const activeMarkets = event.markets.filter((m) => !m.closed);
   if (!activeMarkets || activeMarkets.length < 2) return null;
   const marketsForAnalysis: Market[] = activeMarkets
@@ -38,7 +38,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, index: number
   const betsDescription = '## Title - ' + event.title + '\n' + activeMarkets.map((m, i) => `${i + 1}. ${m.question}`).join('\n');
   const tags = event.tags?.map((t) => t.slug) || [];
   const isObviousExclusiveCase = isObviousMutuallyExclusive(event.title, activeMarkets, tags);
-  const isMutuallyExclusive = isObviousExclusiveCase || (await areBetsMutuallyExclusive(betsDescription, event.id, index));
+  const isMutuallyExclusive = isObviousExclusiveCase || (await areBetsMutuallyExclusive(betsDescription, event.id, availableCollateral));
   if (!isMutuallyExclusive) return null;
   return {
     eventId: event.id,
@@ -66,6 +66,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, index: number
  */
 export const scanEventsForRangeArbitrage = async (
   options: { limit?: number } = {},
+  availableCollateral: number,
 ): Promise<{ opportunities: EventRangeArbitrageOpportunity[]; ordersPlaced: boolean }> => {
   const allOpportunities: EventRangeArbitrageOpportunity[] = [];
   let offset = 0;
@@ -101,7 +102,7 @@ export const scanEventsForRangeArbitrage = async (
           const index = i + batchIndex;
           const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
           if (hasTrade) return null;
-          const opportunity = await checkEventForRangeArbitrage(event, index);
+          const opportunity = await checkEventForRangeArbitrage(event, availableCollateral);
           return opportunity;
         });
         const batchResults = await Promise.all(batchPromises);

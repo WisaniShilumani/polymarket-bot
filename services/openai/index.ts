@@ -50,7 +50,7 @@ let writeQueue: Promise<void> = Promise.resolve();
 /**
  * Appends a result to MUTUALLY_EXCLUSIVE.txt
  */
-const appendResultToFile = async (eventId: string, result: boolean, index: number): Promise<void> => {
+const appendResultToFile = async (eventId: string, result: boolean): Promise<void> => {
   writeQueue = writeQueue.then(async () => {
     try {
       await fsPromises.appendFile(MUTUALLY_EXCLUSIVE_FILE_PATH, `${eventId}:${result}\n`, 'utf-8');
@@ -69,12 +69,16 @@ const appendResultToFile = async (eventId: string, result: boolean, index: numbe
  * @param eventId - The event ID to use as cache key
  * @returns true if the bets are mutually exclusive, false otherwise
  */
-export const areBetsMutuallyExclusive = async (bets: string, eventId: string, index: number): Promise<boolean> => {
+export const areBetsMutuallyExclusive = async (bets: string, eventId: string, balance: number): Promise<boolean> => {
   try {
     // Check cache first
     const cachedResult = mutuallyExclusiveCache.get(eventId);
     if (cachedResult !== undefined) {
       return cachedResult;
+    }
+
+    if (balance < 10) {
+      return false;
     }
 
     logger.debug(`Cache miss for AI check...`);
@@ -244,10 +248,8 @@ Be strict: if the market wording allows ambiguity, treat it as **NOT arbitrage-s
     };
 
     const result = parsed.mutuallyExclusive === 1 && parsed.exhaustive === 1;
-    setTimeout(() => {
-      mutuallyExclusiveCache.set(eventId, result);
-      appendResultToFile(eventId, result, index);
-    }, index);
+    mutuallyExclusiveCache.set(eventId, result);
+    appendResultToFile(eventId, result);
     return result;
   } catch (error) {
     logger.error('Error checking if bets are mutually exclusive:', error);
