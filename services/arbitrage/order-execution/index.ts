@@ -43,7 +43,7 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
   // Check maximum order cost
   const maxOrderCost = Math.min(MAX_ORDER_COST, availableCollateral);
   if (orderCost > maxOrderCost) {
-    logger.warn(`  ⚠️ Total order cost ${formatCurrency(orderCost)} exceeds maximum of ${formatCurrency(maxOrderCost)}, skipping order creation`);
+    // logger.warn(`  ⚠️ Total order cost ${formatCurrency(orderCost)} exceeds maximum of ${formatCurrency(maxOrderCost)}, skipping order creation`);
     return false;
   }
 
@@ -83,11 +83,11 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
   const canFill = await Promise.all(canFillPromises);
   const canFillAll = canFill.every((c) => c);
   if (!canFillAll) {
+    // logger.warn(`  ⚠️ Not enough order book depth to fill all orders, skipping order creation`);
     return false;
   }
 
   logger.money(`\n💰 Executing ${strategy} arbitrage on event: ${opportunity.eventTitle} for ${formatCurrency(orderCost)}`);
-
   const orderResults = await createArbitrageOrders({
     eventId: opportunity.eventId,
     markets: marketsForOrders,
@@ -95,6 +95,6 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
     sharesPerMarket: result.normalizedShares,
   });
 
-  const ordersPlaced = orderResults.some((result) => result.success);
-  return false;
+  const ordersPlaced = orderResults.every((result) => result.success);
+  return ordersPlaced;
 };
