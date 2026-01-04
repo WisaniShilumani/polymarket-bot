@@ -10,7 +10,7 @@ async function main() {
   let opportunitiesFound = false;
   const collateralBalance = await getAccountCollateralBalance();
   while (!opportunitiesFound) {
-    const marketOpportunities = await scanMarketsForSimpleArbitrage({ limit: 500 }, collateralBalance);
+    const marketOpportunities = await scanMarketsForSimpleArbitrage({ limit: 10 }, collateralBalance);
     displayMarketSimpleArbitrageResults(marketOpportunities);
     opportunitiesFound = marketOpportunities.length > 0;
     if (!opportunitiesFound) {
