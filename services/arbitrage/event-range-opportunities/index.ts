@@ -101,10 +101,12 @@ export const scanEventsForRangeArbitrage = async (
       const opportunities = await Promise.all(getOpportunities);
       for (const opportunity of opportunities) {
         if (!opportunity) continue;
-        allOpportunities.push(opportunity);
         foundInBatch++;
         const orderPlaced = await executeArbitrageOrders(opportunity, totalOpenOrderValue);
-        if (orderPlaced) ordersPlaced = true;
+        if (orderPlaced) {
+          ordersPlaced = true;
+          allOpportunities.push(opportunity);
+        }
       }
 
       offset += limit;
