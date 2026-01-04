@@ -96,16 +96,19 @@ export const scanEventsForRangeArbitrage = async (
       let foundInBatch = 0;
       const opportunities: (EventRangeArbitrageOpportunity | null)[] = [];
       const BATCH_SIZE = 5;
+      const batches: PolymarketEvent[][] = [];
       for (let i = 0; i < events.length; i += BATCH_SIZE) {
-        const batch = events.slice(i, i + BATCH_SIZE);
-        const batchPromises = batch.map(async (event, batchIndex) => {
-          const index = i + batchIndex;
-          const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
-          if (hasTrade) return null;
-          const opportunity = await checkEventForRangeArbitrage(event, availableCollateral);
-          return opportunity;
-        });
-        const batchResults = await Promise.all(batchPromises);
+        batches.push(events.slice(i, i + BATCH_SIZE));
+      }
+
+      for (const batch of batches) {
+        const batchResults = await Promise.all(
+          batch.map(async (event) => {
+            const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
+            if (hasTrade) return null;
+            return checkEventForRangeArbitrage(event, availableCollateral);
+          }),
+        );
         opportunities.push(...batchResults);
       }
 
