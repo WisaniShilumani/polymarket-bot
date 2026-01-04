@@ -13,3 +13,4 @@ export const MIN_ROI_THRESHOLD = parseFloat(process.env.MIN_ROI_THRESHOLD || '1.
 export const MIN_PROFIT_THRESHOLD = parseFloat(process.env.MIN_PROFIT_THRESHOLD || '0.01');
 export const DEFAULT_MIN_ORDER_SIZE = parseInt(process.env.DEFAULT_MIN_ORDER_SIZE || '5');
 export const EVENT_HOLDINGS = process.env.EVENT_HOLDINGS || '';
+export const MAX_SPREAD = 0.02;

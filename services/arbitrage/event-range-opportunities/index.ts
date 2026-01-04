@@ -1,5 +1,5 @@
 import type { EventRangeArbitrageOpportunity, Market, PolymarketEvent } from '../../../common/types';
-import { DEFAULT_MIN_ORDER_SIZE, MIN_LIQUIDITY } from '../../../config';
+import { DEFAULT_MIN_ORDER_SIZE, MAX_SPREAD, MIN_LIQUIDITY } from '../../../config';
 import logger from '../../../utils/logger';
 import { rangeArbitrage } from '../../../utils/math/range-arbitrage';
 import { areBetsMutuallyExclusive } from '../../openai';
@@ -23,6 +23,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
       marketId: m.id,
       question: m.question,
       yesPrice: parseFloat(m.lastTradePrice) || 0.5,
+      spread: m.spread,
     }));
 
   const totalYesProbability = marketsForAnalysis.reduce((sum, m) => sum + m.yesPrice, 0);
@@ -44,9 +45,9 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent): Promise<Even
     eventTitle: event.title,
     markets: activeMarkets.map((m) => ({
       marketId: m.id,
-      slug: m.slug,
       question: m.question,
       yesPrice: parseFloat(m.lastTradePrice) || 0.5,
+      spread: m.spread,
     })),
     result: {
       ...result,
@@ -96,7 +97,8 @@ export const scanEventsForRangeArbitrage = async (
           continue;
         }
         const opportunity = await checkEventForRangeArbitrage(event);
-        if (opportunity) {
+        const hasGoodSpreads = opportunity?.markets.every((m) => m.spread <= MAX_SPREAD);
+        if (opportunity && hasGoodSpreads) {
           opportunities.push(opportunity);
           foundInBatch++;
           logger.success(`  ✅ Found: [${opportunity.eventId}] ${opportunity.eventTitle} - ${opportunity.markets.length} markets`);

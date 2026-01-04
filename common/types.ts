@@ -4,6 +4,7 @@ export interface Market {
   marketId: string;
   question: string;
   yesPrice: number;
+  spread: number;
 }
 
 export interface Position {
@@ -55,6 +56,7 @@ export interface PolymarketMarket {
   categories?: any[];
   tags?: any[];
   sportsMarketType?: string;
+  spread: number;
 }
 
 export interface PolymarketEvent {
@@ -115,12 +117,7 @@ export interface EventRangeArbitrageOpportunity {
   eventId: string;
   eventSlug: string;
   eventTitle: string;
-  markets: Array<{
-    marketId: string;
-    slug: string;
-    question: string;
-    yesPrice: number;
-  }>;
+  markets: Market[];
   result: {
     arbitrageBundles: any[];
     normalizedShares: number;
