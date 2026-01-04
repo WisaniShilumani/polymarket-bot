@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import './server';
 import { findAndAnalyzeArbitrage } from './services/arbitrage';
 import logger from './utils/logger';
 
