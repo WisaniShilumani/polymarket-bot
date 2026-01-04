@@ -250,7 +250,9 @@ Be strict: if the market wording allows ambiguity, treat it as **NOT arbitrage-s
 
   const result = parsed.mutuallyExclusive === 1 && parsed.exhaustive === 1;
   mutuallyExclusiveCache.set(eventId, result);
-
-  appendResultToFile(eventId, result, index);
+  setTimeout(() => {
+    // hack to push this behind the event queue
+    appendResultToFile(eventId, result, index);
+  }, index);
   return result;
 };
