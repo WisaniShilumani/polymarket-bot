@@ -83,10 +83,7 @@ export const areBetsMutuallyExclusive = async (bets: string, eventId: string, in
       messages: [
         {
           role: 'system',
-          content:
-            Number(1) === 1
-              ? 'System'
-              : `
+          content: `
         ## SYSTEM PROMPT: Prediction Market Exclusivity & Exhaustiveness Analyzer
 
 You are an expert at analyzing **prediction market bets** (e.g. Polymarket, Kalshi, Manifold).
