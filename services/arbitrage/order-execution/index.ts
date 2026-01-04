@@ -121,36 +121,39 @@ export const executeArbitrageOrders = async (
   let resultantOpportunity = opportunity;
   const canFillAll = depthResults.every((r) => r.depthCheck.canFill);
   if (!canFillAll) {
-    const hasLiquidity = depthResults.every((r) => r.depthCheck.totalAvailable >= result.normalizedShares);
-    if (!hasLiquidity) return defaultResult;
-    const recalculation = await recalculateWithLikelyFillPrices(
-      opportunity.eventId,
-      availableCollateral,
-      orderCost,
-      marketsForOrders,
-      activeMarkets,
-      result.normalizedShares,
-    );
-    if (!recalculation.success || !recalculation.adjustedPrices) return defaultResult;
-    strategy = recalculation.strategy || strategy;
-    marketsForOrders.forEach((market, index) => {
-      market.price = recalculation.adjustedPrices?.[index] || market.price;
-    });
+    logger.warn(`\n💰 [${opportunity.eventId}] Not all markets can be filled, skipping order execution`);
+    return defaultResult;
+    // TEMP disabled, creating too many requests
+    // const hasLiquidity = depthResults.every((r) => r.depthCheck.totalAvailable >= result.normalizedShares);
+    // if (!hasLiquidity) return defaultResult;
+    // const recalculation = await recalculateWithLikelyFillPrices(
+    //   opportunity.eventId,
+    //   availableCollateral,
+    //   orderCost,
+    //   marketsForOrders,
+    //   activeMarkets,
+    //   result.normalizedShares,
+    // );
+    // if (!recalculation.success || !recalculation.adjustedPrices) return defaultResult;
+    // strategy = recalculation.strategy || strategy;
+    // marketsForOrders.forEach((market, index) => {
+    //   market.price = recalculation.adjustedPrices?.[index] || market.price;
+    // });
 
-    const adjustedOrderCost = marketsForOrders.reduce((sum, m) => sum + m.price * result.normalizedShares, 0);
-    logger.money(`\n💰 Executing ${strategy} arbitrage (adjusted prices) on event: ${opportunity.eventTitle} for ${formatCurrency(adjustedOrderCost)}`);
+    // const adjustedOrderCost = marketsForOrders.reduce((sum, m) => sum + m.price * result.normalizedShares, 0);
+    // logger.money(`\n💰 Executing ${strategy} arbitrage (adjusted prices) on event: ${opportunity.eventTitle} for ${formatCurrency(adjustedOrderCost)}`);
 
-    resultantOpportunity = {
-      ...opportunity,
-      result: {
-        ...result,
-        arbitrageBundles: [recalculation.recalculatedResult?.arbitrageBundles[0] || result.arbitrageBundles[0]],
-      },
-      markets: opportunity.markets.map((market, index) => ({
-        ...market,
-        yesPrice: recalculation.adjustedPrices?.[index] || market.yesPrice,
-      })),
-    };
+    // resultantOpportunity = {
+    //   ...opportunity,
+    //   result: {
+    //     ...result,
+    //     arbitrageBundles: [recalculation.recalculatedResult?.arbitrageBundles[0] || result.arbitrageBundles[0]],
+    //   },
+    //   markets: opportunity.markets.map((market, index) => ({
+    //     ...market,
+    //     yesPrice: recalculation.adjustedPrices?.[index] || market.yesPrice,
+    //   })),
+    // };
   } else {
     logger.money(`\n💰 Executing ${strategy} arbitrage on event: ${opportunity.eventTitle} for ${formatCurrency(orderCost)}`);
   }
