@@ -2,6 +2,7 @@ import type { PolymarketMarket } from '../../../common/types';
 import { DEFAULT_MIN_ORDER_SIZE, MAX_ORDER_COST } from '../../../config';
 import logger from '../../../utils/logger';
 import { getMarketsFromRest } from '../../polymarket/markets';
+import { getOpenOrders } from '../../polymarket/orders';
 
 interface MarketSimpleArbitrageOpportunity {
   marketId: string;
@@ -83,8 +84,9 @@ export const scanMarketsForSimpleArbitrage = async (
     try {
       logger.progress(`Scanning markets ${offset} to ${offset + limit}...`);
 
-      const markets = await getMarketsFromRest({ offset, limit, closed: false });
-
+      const [orders, markets] = await Promise.all([getOpenOrders(), getMarketsFromRest({ offset, limit, closed: false })]);
+      const totalOpenOrderValue = orders.reduce((sum, o) => sum + parseFloat(o.price) * parseFloat(o.original_size), 0);
+      const availableCollateral = collateralBalance - totalOpenOrderValue;
       if (markets.length === 0) {
         logger.info('No more markets to scan.');
         hasMoreMarkets = false;
@@ -93,7 +95,7 @@ export const scanMarketsForSimpleArbitrage = async (
 
       let foundInBatch = 0;
       for (const market of markets) {
-        const maxOrderCost = Math.min(MAX_ORDER_COST, collateralBalance);
+        const maxOrderCost = Math.min(MAX_ORDER_COST, availableCollateral);
         const opportunity = checkMarketForSimpleArbitrage(market);
         if (opportunity && opportunity.roi > 0.2 && opportunity.totalCost < maxOrderCost) {
           opportunities.push(opportunity);
