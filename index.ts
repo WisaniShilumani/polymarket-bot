@@ -6,14 +6,17 @@ import logger from './utils/logger';
 logger.info('Starting Polymarket Arbitrage Detection Bot...');
 
 async function main() {
+  logger.log('\n\n');
+  logger.header('╔════════════════════════════════════════════════════════════════╗');
+  logger.header('║           POLYMARKET ARBITRAGE DETECTION BOT                   ║');
+  logger.header('╚════════════════════════════════════════════════════════════════╝');
   let ordersPlaced = false; // Will run indefinitely
   while (!ordersPlaced) {
     const result = await findAndAnalyzeArbitrage();
     if (!result) {
-      logger.warn('\n⏳ No orders placed. Waiting 3 seconds before next scan...\n');
-      await new Promise((resolve) => setTimeout(resolve, 3000)); // Wait 3 seconds
+      logger.warn('⏳ No orders placed. Scanning again...\n');
     } else {
-      logger.success('\n✅ Orders placed! Stopping scan.\n');
+      logger.success('✅ Orders placed! Looking for more...\n');
     }
   }
   // await findSentimentalArbitrage();

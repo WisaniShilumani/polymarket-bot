@@ -1,7 +1,6 @@
 import type { Side } from '@polymarket/clob-client';
 import { getClobClient } from '..';
-import logger from '../../../utils/logger';
-import { formatCurrency } from '../../../utils/accounting';
+import { MAX_SPREAD } from '../../../config';
 
 export interface OrderBookDepth {
   canFill: boolean;
@@ -11,12 +10,10 @@ export interface OrderBookDepth {
   totalAvailable: number;
 }
 
-const MAX_SPREAD = 0.05;
-
 /**
  * Analyzes order book to predict actual fill price
  */
-export const getOrderBookDepth = async (tokenId: string, side: Side, desiredSize: number, desiredPrice: number, spread: number): Promise<OrderBookDepth> => {
+export const getOrderBookDepth = async (tokenId: string, side: Side, desiredSize: number, desiredPrice: number): Promise<OrderBookDepth> => {
   const client = await getClobClient();
   const orderBook = await client.getOrderBook(tokenId);
 

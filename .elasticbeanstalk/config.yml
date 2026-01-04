@@ -1,10 +1,10 @@
 branch-defaults:
   master:
-    environment: polymarket-bot-production
+    environment: polymarket-bot-22-production
     group_suffix: null
 
 global:
-  application_name: polymarket-bot
+  application_name: polymarket-bot-22
   branch: null
   default_ec2_keyname: null
   default_platform: Node.js 22

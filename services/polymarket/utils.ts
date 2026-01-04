@@ -4,8 +4,8 @@ import { POLYMARKET_API_URL } from '../../config';
 
 export const buildEventsUrl = (options: GetEventsOptions = {}) => {
   const today = new Date().toISOString();
-  const startDate = new Date(new Date().setMonth(new Date().getMonth() - 6)).toISOString();
-  const maxEndDate = addDays(new Date(), 14).toISOString();
+  const startDate = new Date(new Date().setMonth(new Date().getMonth() - 8)).toISOString();
+  const maxEndDate = addDays(new Date(), 20).toISOString();
   const { limit = 100, offset = 0, closed = false } = options;
   const params = new URLSearchParams({
     limit: limit.toString(),

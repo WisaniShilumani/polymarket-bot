@@ -242,7 +242,6 @@ Be strict: if the market wording allows ambiguity, treat it as **NOT arbitrage-s
     exhaustive: number;
   };
 
-  logger.log({ parsed, bets: bets });
   const result = parsed.mutuallyExclusive === 1 && parsed.exhaustive === 1;
   mutuallyExclusiveCache.set(eventId, result);
   appendResultToFile(eventId, result);

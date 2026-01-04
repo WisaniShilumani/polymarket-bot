@@ -17,7 +17,7 @@ async function main() {
       logger.warn('\n⏳ No opportunities found. Waiting 3 seconds before next scan...\n');
       await new Promise((resolve) => setTimeout(resolve, 3000));
     } else {
-      logger.success('\n✅ Opportunities found! Stopping scan.\n');
+      logger.success('\n✅ Opportunities found!\n');
     }
   }
   // await findSentimentalArbitrage();

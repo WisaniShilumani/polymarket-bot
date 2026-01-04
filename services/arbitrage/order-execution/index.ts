@@ -61,7 +61,6 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
     tokenId: JSON.parse(m.clobTokenIds as unknown as string)[tokenIndex] as string,
     question: m.question,
     price: useYesStrategy ? parseFloat(m.lastTradePrice) || 0.5 : 1 - (parseFloat(m.lastTradePrice) || 0.5),
-    spread: m.spread,
   }));
 
   if (marketsWithTokens.length === 0) {
@@ -76,7 +75,7 @@ export const executeArbitrageOrders = async (opportunity: EventRangeArbitrageOpp
 
   // Check if the order book depth is sufficient
   const canFillPromises = marketsForOrders.map(async (market) => {
-    const depthCheck = await getOrderBookDepth(market.tokenId, Side.BUY, result.normalizedShares, market.price, market.spread);
+    const depthCheck = await getOrderBookDepth(market.tokenId, Side.BUY, result.normalizedShares, market.price);
     return depthCheck.canFill;
   });
 
