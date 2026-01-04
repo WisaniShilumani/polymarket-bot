@@ -19,7 +19,11 @@ export const createOrder = async (params: OrderParams): Promise<OrderResult> => 
       side,
     });
 
-    logger.success(`  📝 Order placed: [${params.tokenId}] ${params.side} ${params.size} shares @ $${params.price} - Order ID: ${response.orderID}`);
+    // Log the full response structure for debugging
+    logger.debug(`Response type: ${typeof response}, Response keys: ${Object.keys(response || {}).join(', ')}`);
+    logger.debug(`Full response: ${JSON.stringify(response, null, 2)}`);
+
+    logger.success(`  📝 Order placed: ${params.side} ${params.size} shares @ $${params.price} - Order ID: ${response.orderID}`);
     return {
       success: true,
       orderId: response.orderID,
