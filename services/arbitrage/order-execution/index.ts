@@ -111,9 +111,15 @@ export const executeArbitrageOrders = async (
   }));
 
   if (!validateOrder(selectedBundle, availableCollateral, orderCost, marketsForOrders, activeMarkets, opportunity.eventId)) return defaultResult;
-
+  const daysToExpiry = activeMarkets[0]?.endDate ? Math.abs(differenceInDays(new Date(activeMarkets[0].endDate), new Date())) : 7;
   const depthCheckPromises = marketsForOrders.map(async (market) => {
-    const depthCheck = await getOrderBookDepth(useYesStrategy ? market.yesTokenId : market.noTokenId, Side.BUY, result.normalizedShares, market.price);
+    const depthCheck = await getOrderBookDepth(
+      useYesStrategy ? market.yesTokenId : market.noTokenId,
+      Side.BUY,
+      result.normalizedShares,
+      market.price,
+      daysToExpiry,
+    );
     return { market, depthCheck };
   });
 

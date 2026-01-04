@@ -1,6 +1,8 @@
 import type { Side } from '@polymarket/clob-client';
 import { getClobClient } from '..';
 import { MAX_SPREAD } from '../../../config';
+import logger from '../../../utils/logger';
+import { formatCurrency } from '../../../utils/accounting';
 
 export interface OrderBookDepth {
   canFill: boolean;
@@ -13,7 +15,13 @@ export interface OrderBookDepth {
 /**
  * Analyzes order book to predict actual fill price
  */
-export const getOrderBookDepth = async (tokenId: string, side: Side, desiredSize: number, desiredPrice: number): Promise<OrderBookDepth> => {
+export const getOrderBookDepth = async (
+  tokenId: string,
+  side: Side,
+  desiredSize: number,
+  desiredPrice: number,
+  daysToExpiry: number,
+): Promise<OrderBookDepth> => {
   const client = await getClobClient();
   const orderBook = await client.getOrderBook(tokenId);
 
@@ -57,8 +65,13 @@ export const getOrderBookDepth = async (tokenId: string, side: Side, desiredSize
   const avgFillPrice = totalCost / desiredSize;
   const midPrice = (parseFloat(orderBook.asks[0]?.price || '0') + parseFloat(orderBook.bids[0]?.price || '0')) / 2;
   const slippagePct = midPrice !== 0 ? Math.abs(avgFillPrice - midPrice) / midPrice : 0;
-  const canFillWithAcceptablePrice = avgFillPrice <= desiredPrice + MAX_SPREAD;
-  // if (canFillWithAcceptablePrice) logger.info(`✅ Price difference: ${formatCurrency(avgFillPrice - desiredPrice)} (spread: ${spread})`);
+  const maxAcceptableSpread = MAX_SPREAD + Math.min(daysToExpiry, 4) * 0.01; // not an exact science, but the more days we have, the more spread we can tolerate
+  const canFillWithAcceptablePrice = avgFillPrice <= desiredPrice + maxAcceptableSpread;
+  // logger.info(
+  //   `${canFillWithAcceptablePrice ? '✅' : '❌'} Price difference: ${formatCurrency(avgFillPrice - desiredPrice)} [${formatCurrency(
+  //     avgFillPrice,
+  //   )}/${formatCurrency(desiredPrice)}](spread: ${formatCurrency(maxAcceptableSpread)})`,
+  // );
   return {
     canFill: canFillWithAcceptablePrice,
     avgFillPrice,

@@ -1,7 +1,6 @@
 import { differenceInDays } from 'date-fns';
 import type { ArbitrageResult, MarketForOrder, PolymarketMarket } from '../../../common/types';
 import { MAX_ORDER_COST, MIN_PROFIT_THRESHOLD, MIN_ROI_THRESHOLD } from '../../../config';
-import { formatCurrency } from '../../../utils/accounting';
 import { logger } from '../../../utils/logger';
 
 export const validateOrder = (
