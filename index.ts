@@ -22,11 +22,11 @@ async function main() {
     const [openOrders, collateralBalance] = await Promise.all([getOpenOrders(), getAccountCollateralBalance()]);
     const totalOpenOrderValue = openOrders.reduce((sum, o) => sum + parseFloat(o.price) * parseFloat(o.original_size), 0);
     const availableCollateral = collateralBalance - totalOpenOrderValue;
-    if (availableCollateral <= 2) {
-      logger.warn('⏳ No available collateral. Scanning again after a few moments...\n');
-      await new Promise((resolve) => setTimeout(resolve, 10000));
-      continue;
-    }
+    // if (availableCollateral <= 2) {
+    //   logger.warn('⏳ No available collateral. Scanning again after a few moments...\n');
+    //   await new Promise((resolve) => setTimeout(resolve, 10000));
+    //   continue;
+    // }
     const result = await findAndAnalyzeArbitrage(availableCollateral);
     if (!result) {
       logger.warn('⏳ No orders placed. Scanning again...\n');

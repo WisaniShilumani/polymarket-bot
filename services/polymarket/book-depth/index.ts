@@ -1,8 +1,6 @@
 import type { Side } from '@polymarket/clob-client';
 import { getClobClient } from '..';
 import { MAX_SPREAD } from '../../../config';
-import logger from '../../../utils/logger';
-import { formatCurrency } from '../../../utils/accounting';
 
 export interface OrderBookDepth {
   canFill: boolean;
@@ -10,6 +8,7 @@ export interface OrderBookDepth {
   worstFillPrice: number;
   slippagePct: number;
   totalAvailable: number;
+  spread: number;
 }
 
 /**
@@ -59,6 +58,7 @@ export const getOrderBookDepth = async (
       worstFillPrice: 0,
       slippagePct: Infinity,
       totalAvailable: totalFilled,
+      spread: 0,
     };
   }
 
@@ -67,6 +67,7 @@ export const getOrderBookDepth = async (
   const slippagePct = midPrice !== 0 ? Math.abs(avgFillPrice - midPrice) / midPrice : 0;
   const maxAcceptableSpread = MAX_SPREAD + Math.min(daysToExpiry, 4) * 0.01; // not an exact science, but the more days we have, the more spread we can tolerate
   const canFillWithAcceptablePrice = avgFillPrice <= desiredPrice + maxAcceptableSpread;
+  const spread = avgFillPrice - desiredPrice;
   // logger.info(
   //   `${canFillWithAcceptablePrice ? '✅' : '❌'} Price difference: ${formatCurrency(avgFillPrice - desiredPrice)} [${formatCurrency(
   //     avgFillPrice,
@@ -78,5 +79,6 @@ export const getOrderBookDepth = async (
     worstFillPrice: worstPrice,
     slippagePct,
     totalAvailable: totalFilled,
+    spread,
   };
 };

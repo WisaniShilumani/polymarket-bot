@@ -59,6 +59,7 @@ export const createArbitrageOrders = async (params: ArbitrageOrderParams): Promi
   const results: OrderResult[] = [];
   logger.info(`\n🚀 Placing ${params.side} orders on ${params.markets.length} markets (${params.sharesPerMarket} shares each)...`);
 
+  // Currently not guaranteed to fill all orders; we'll need to add a test first
   for (const market of params.markets) {
     const result = await createOrder({
       tokenId: params.side === 'YES' ? market.yesTokenId : market.noTokenId,

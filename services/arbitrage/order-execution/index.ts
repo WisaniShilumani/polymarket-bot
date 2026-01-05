@@ -115,7 +115,7 @@ export const executeArbitrageOrders = async (
   if (!validateOrder(selectedBundle, marketsForOrders, activeMarkets, opportunity.eventId)) return defaultResult;
   const collateralBalance = await getAccountCollateralBalance();
   const availableCollateral = collateralBalance - totalOpenOrderValue;
-  if (!validateCollateral(availableCollateral, orderCost, opportunity.eventId)) return defaultResult;
+  // if (!validateCollateral(availableCollateral, orderCost, opportunity.eventId)) return defaultResult;
 
   const daysToExpiry = activeMarkets[0]?.endDate ? Math.abs(differenceInDays(new Date(activeMarkets[0].endDate), new Date())) : 7;
   const depthCheckPromises = marketsForOrders.map(async (market) => {
@@ -130,6 +130,9 @@ export const executeArbitrageOrders = async (
   });
 
   const depthResults = await Promise.all(depthCheckPromises);
+  console.log(depthResults);
+  // order markets with highest spread first
+  const sortedMarketOrders = depthResults.sort((a, b) => b.depthCheck.spread - a.depthCheck.spread).map((r) => r.market);
   let resultantOpportunity = opportunity;
   const canFillAll = depthResults.every((r) => r.depthCheck.canFill);
   if (!canFillAll) {
@@ -172,7 +175,7 @@ export const executeArbitrageOrders = async (
 
   const orderResults = await createArbitrageOrders({
     eventId: opportunity.eventId,
-    markets: marketsForOrders,
+    markets: sortedMarketOrders,
     side: strategy,
     sharesPerMarket: result.normalizedShares,
   });
