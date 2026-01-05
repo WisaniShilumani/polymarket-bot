@@ -46,7 +46,7 @@ export const isObviousMutuallyExclusive = (eventTitle: string, markets: Polymark
 // Patterns for obviously non-exhaustive events (to ignore/skip)
 const spreadBettingPattern = /beat .+ by more than \d+\.?\d* (points?|goals?)/i;
 const priceThresholdPattern = /\$\w+ (be above|hit|reach|close above|drop below) \$?\d/i;
-const priceThresholdPattern2 = /.+(above|below|reach).+(on|by)/i;
+const priceThresholdPattern2 = /$z.+(above|below|reach).+(on|by)/i;
 const floorPricePattern = /floor price .+ (be above|be over|reach) \d/i;
 const approvalRatingPattern = /approval rating.+ (be \d+%|or higher|or more)/i;
 const vaccineThresholdPattern = /\d+ million (people|Americans).+ (received|have)/i;

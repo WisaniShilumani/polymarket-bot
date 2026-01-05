@@ -28,8 +28,8 @@ export const getOrderBookDepth = async (
   // For SELL orders, we take from BIDs (buyers)
   const orders =
     side === 'BUY'
-      ? orderBook.asks.sort((a, b) => parseFloat(a.price) - parseFloat(b.price))
-      : orderBook.bids.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
+      ? orderBook.asks?.sort((a, b) => parseFloat(a.price) - parseFloat(b.price)) || []
+      : orderBook.bids?.sort((a, b) => parseFloat(b.price) - parseFloat(a.price)) || [];
 
   let remainingSize = desiredSize;
   let totalCost = 0;

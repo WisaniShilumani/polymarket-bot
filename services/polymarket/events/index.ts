@@ -12,13 +12,7 @@ export const getEventsFromRest = async (options: GetEventsOptions = {}): Promise
   const url = buildEventsUrl(options);
   try {
     const events = await http.get(url).json<PolymarketEvent[]>();
-    return events.filter((event) => {
-      if (event.title.includes('NBA:')) return false;
-      if (event.title.includes('NFL:')) return false;
-      if (event.category?.toLowerCase().includes('pop-culture')) return false;
-      if (event.description?.toLowerCase().includes('box office')) return false;
-      return true;
-    });
+    return events;
   } catch (error) {
     logger.error('Error fetching events from Polymarket API:', error);
     throw error;

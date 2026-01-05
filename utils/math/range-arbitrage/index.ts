@@ -30,12 +30,13 @@ export function checkMutuallyExclusiveArbitrage(positions: Position[], marketIds
 
 export const rangeArbitrage = (markets: Market[], stakePerMarket = 1): RangeArbitrageResult => {
   const marketIds = markets.map((m) => m.marketId);
+  const hopefulDiscount = 0.005;
 
   // Strategy A: Buy YES on all ranges
   const yesPositions: Position[] = markets.map((m) => ({
     marketId: m.marketId,
     side: MarketSide.Yes,
-    price: m.yesPrice,
+    price: m.yesPrice - hopefulDiscount,
     size: stakePerMarket,
   }));
 
@@ -43,7 +44,7 @@ export const rangeArbitrage = (markets: Market[], stakePerMarket = 1): RangeArbi
   const noPositions: Position[] = markets.map((m) => ({
     marketId: m.marketId,
     side: MarketSide.No,
-    price: m.noPrice,
+    price: m.noPrice - hopefulDiscount,
     size: stakePerMarket,
   }));
 

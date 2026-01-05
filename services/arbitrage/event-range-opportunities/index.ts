@@ -25,6 +25,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
   const activeMarkets = event.markets.filter((m) => !m.closed);
   if (!activeMarkets || activeMarkets.length < 2) return null;
   if (isObviouslyNonExhaustive(event.title, activeMarkets)) {
+    logger.warn(`  ⚠️ [${event.title}] Event is obviously non-exhaustive, skipping`);
     return null;
   }
 
