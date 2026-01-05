@@ -1,4 +1,4 @@
-import type { EventRangeArbitrageOpportunity, Market, MarketForOrder, PolymarketMarket } from '../../../common/types';
+import type { ArbitrageResult, EventRangeArbitrageOpportunity, Market, MarketForOrder, PolymarketMarket } from '../../../common/types';
 import { getAccountCollateralBalance } from '../../polymarket/account-balance';
 import logger from '../../../utils/logger';
 import { formatCurrency } from '../../../utils/accounting';
@@ -9,6 +9,7 @@ import { rangeArbitrage, type RangeArbitrageResult } from '../../../utils/math/r
 import { differenceInDays } from 'date-fns';
 import { validateCollateral, validateOrder } from './validate';
 import { getLikelyFillPrice } from '../../polymarket/order-book';
+import { MarketSide } from '../../../common/enums';
 
 interface RecalculationResult {
   success: boolean;
@@ -90,10 +91,10 @@ export const executeArbitrageOrders = async (
   const defaultResult = { ordersPlaced: false, opportunity: opportunity };
   const { eventData, result } = opportunity;
   const activeMarkets = eventData.markets.filter((m) => !m.closed);
-  const yesBundle = result.arbitrageBundles[0];
-  const noBundle = result.arbitrageBundles[1];
-  const useYesStrategy = yesBundle && (!noBundle || yesBundle.worstCaseProfit >= (noBundle?.worstCaseProfit ?? 0));
-  const selectedBundle = useYesStrategy ? yesBundle : noBundle;
+  const yesBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.Yes);
+  const noBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.No);
+  const useYesStrategy = yesBundle?.isArbitrage && (!noBundle || yesBundle.worstCaseProfit >= (noBundle?.worstCaseProfit ?? 0));
+  const selectedBundle = useYesStrategy ? (yesBundle as ArbitrageResult) : (noBundle as ArbitrageResult);
   let strategy: 'YES' | 'NO' = useYesStrategy ? 'YES' : 'NO';
   const tokenIndex = useYesStrategy ? 0 : 1;
   const orderCost = activeMarkets.reduce(
@@ -130,6 +131,7 @@ export const executeArbitrageOrders = async (
   });
 
   const depthResults = await Promise.all(depthCheckPromises);
+  // console.log(JSON.stringify(depthResults, null, 2));
   // order markets with highest spread first
   const sortedMarketOrders = depthResults
     .sort((a, b) => b.depthCheck.spread - a.depthCheck.spread)

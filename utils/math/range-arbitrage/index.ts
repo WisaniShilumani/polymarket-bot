@@ -8,10 +8,12 @@ export interface RangeArbitrageResult {
 }
 
 export function checkMutuallyExclusiveArbitrage(positions: Position[], marketIds: string[]): ArbitrageResult {
+  if (!positions.length) throw new Error('No positions provided');
   if (marketIds.length < 2) {
     throw new Error('At least two outcome states required');
   }
 
+  const side = positions[0]?.side || MarketSide.Yes;
   const cost = getTotalCost(positions);
   const payouts = marketIds.map((marketId) => getPayout(positions, marketId));
   const minPayout = Math.min(...payouts);
@@ -22,6 +24,7 @@ export function checkMutuallyExclusiveArbitrage(positions: Position[], marketIds
     worstCaseProfit,
     cost,
     minPayout,
+    side,
   };
 }
 
@@ -45,9 +48,9 @@ export const rangeArbitrage = (markets: Market[], stakePerMarket = 1): RangeArbi
   }));
 
   const yesArbitrage = checkMutuallyExclusiveArbitrage(yesPositions, marketIds);
-  // const noArbitrage = checkMutuallyExclusiveArbitrage(noPositions, marketIds);
+  const noArbitrage = checkMutuallyExclusiveArbitrage(noPositions, marketIds);
   // TODO - We're only returning the YES bundle for now because in some markets no is not = 1 - yesPrice
-  const arbitrageBundles = [yesArbitrage].filter((a) => a.isArbitrage);
+  const arbitrageBundles = [yesArbitrage, noArbitrage].filter((a) => a.isArbitrage);
   return {
     arbitrageBundles,
   };

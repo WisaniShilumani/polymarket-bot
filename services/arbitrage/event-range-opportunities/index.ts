@@ -39,6 +39,14 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
   const result = rangeArbitrage(marketsForAnalysis, 1);
   const hasArbitrage = result.arbitrageBundles.some((bundle) => bundle.isArbitrage);
   if (!hasArbitrage) return null;
+
+  // BIG BUG - When no opportunities are found, it buys YES
+  // FIX BELOW
+  // =========================
+  // const yesBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.Yes);
+  // const noBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.No);
+  // const useYesStrategy = yesBundle && (!noBundle || yesBundle.worstCaseProfit >= (noBundle?.worstCaseProfit ?? 0));
+  // const selectedBundle = useYesStrategy ? yesBundle : noBundle;
   // console.log(JSON.stringify({ result, markets: marketsForAnalysis }, null, 2));
   const betsDescription = '## Title - ' + event.title + '\n' + activeMarkets.map((m, i) => `${i + 1}. ${m.question}`).join('\n');
   const tags = event.tags?.map((t) => t.slug) || [];
@@ -52,8 +60,8 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
     markets: activeMarkets.map((m) => ({
       marketId: m.id,
       question: m.question,
-      yesPrice: parseFloat(m.bestAsk || m.lastTradePrice) || 0.5,
-      noPrice: 1 - (parseFloat(m.bestAsk || m.lastTradePrice) || 0.5),
+      yesPrice: parseFloat(m.bestAsk || m.lastTradePrice) || 1,
+      noPrice: 1 - parseFloat(m.bestAsk || m.lastTradePrice || '0'),
       spread: m.spread,
     })),
     result: {
@@ -117,12 +125,14 @@ export const scanEventsForRangeArbitrage = async (
         opportunities.push(...batchResults);
       }
 
+      // BUG: Despite finding a NO arbitrage, we use the opportunity to buy YES regardless.
       const sortedOpportunities = opportunities
         .filter((o) => !!o)
-        .sort((a, b) => b?.result.arbitrageBundles[0]?.worstCaseProfit - a?.result.arbitrageBundles[0]?.worstCaseProfit);
+        .sort((a, b) => (b?.result.arbitrageBundles[0]?.worstCaseProfit ?? 0) - (a?.result.arbitrageBundles[0]?.worstCaseProfit ?? 0));
       logger.progress(`Found ${sortedOpportunities.length} opportunities in this batch...`);
       for (const opportunity of sortedOpportunities) {
         if (!opportunity) continue;
+
         foundInBatch++;
         const { ordersPlaced: placed, opportunity: resultantOpportunity } = await executeArbitrageOrders(opportunity, totalOpenOrderValue);
         if (placed) {

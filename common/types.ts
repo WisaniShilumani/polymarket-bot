@@ -21,6 +21,7 @@ export interface ArbitrageResult {
   worstCaseProfit: number;
   cost: number;
   minPayout: number;
+  side: MarketSide;
 }
 
 export interface LatencyArbResult {
@@ -133,7 +134,7 @@ export interface EventRangeArbitrageOpportunity {
   eventTitle: string;
   markets: Market[];
   result: {
-    arbitrageBundles: any[];
+    arbitrageBundles: ArbitrageResult[];
     normalizedShares: number;
   };
   hasArbitrage: boolean;
