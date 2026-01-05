@@ -39,6 +39,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
   const result = rangeArbitrage(marketsForAnalysis, 1);
   const hasArbitrage = result.arbitrageBundles.some((bundle) => bundle.isArbitrage);
   if (!hasArbitrage) return null;
+  // console.log(JSON.stringify({ result, markets: marketsForAnalysis }, null, 2));
   const betsDescription = '## Title - ' + event.title + '\n' + activeMarkets.map((m, i) => `${i + 1}. ${m.question}`).join('\n');
   const tags = event.tags?.map((t) => t.slug) || [];
   const isObviousExclusiveCase = isObviousMutuallyExclusive(event.title, activeMarkets, tags);

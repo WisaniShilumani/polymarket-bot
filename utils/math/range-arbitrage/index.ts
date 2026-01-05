@@ -45,9 +45,9 @@ export const rangeArbitrage = (markets: Market[], stakePerMarket = 1): RangeArbi
   }));
 
   const yesArbitrage = checkMutuallyExclusiveArbitrage(yesPositions, marketIds);
-  const noArbitrage = checkMutuallyExclusiveArbitrage(noPositions, marketIds);
+  // const noArbitrage = checkMutuallyExclusiveArbitrage(noPositions, marketIds);
   // TODO - We're only returning the YES bundle for now because in some markets no is not = 1 - yesPrice
-  const arbitrageBundles = [yesArbitrage, noArbitrage].filter((a) => a.isArbitrage);
+  const arbitrageBundles = [yesArbitrage].filter((a) => a.isArbitrage);
   return {
     arbitrageBundles,
   };
