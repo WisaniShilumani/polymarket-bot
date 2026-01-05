@@ -131,7 +131,12 @@ export const executeArbitrageOrders = async (
 
   const depthResults = await Promise.all(depthCheckPromises);
   // order markets with highest spread first
-  const sortedMarketOrders = depthResults.sort((a, b) => b.depthCheck.spread - a.depthCheck.spread).map((r) => r.market);
+  const sortedMarketOrders = depthResults
+    .sort((a, b) => b.depthCheck.spread - a.depthCheck.spread)
+    .map((r) => ({
+      ...r.market,
+      price: Math.min(r.market.price, r.depthCheck.avgFillPrice),
+    }));
   let resultantOpportunity = opportunity;
   const canFillAll = depthResults.every((r) => r.depthCheck.canFill);
   if (!canFillAll) {
