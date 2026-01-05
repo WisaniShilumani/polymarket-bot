@@ -93,9 +93,10 @@ export const executeArbitrageOrders = async (
   const activeMarkets = eventData.markets.filter((m) => !m.closed);
   const yesBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.Yes);
   const noBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.No);
-  const useYesStrategy = yesBundle?.isArbitrage && (!noBundle || yesBundle.worstCaseProfit >= (noBundle?.worstCaseProfit ?? 0));
+  const useYesStrategy = yesBundle?.isArbitrage; // && (!noBundle || yesBundle.worstCaseProfit >= (noBundle?.worstCaseProfit ?? 0)); - in future try both
   const selectedBundle = useYesStrategy ? (yesBundle as ArbitrageResult) : (noBundle as ArbitrageResult);
   let strategy: 'YES' | 'NO' = useYesStrategy ? 'YES' : 'NO';
+  logger.info(`\n💰 Attempting ${strategy} arbitrage on event: ${opportunity.eventTitle} ${JSON.stringify(noBundle)}`);
   const tokenIndex = useYesStrategy ? 0 : 1;
   const orderCost = activeMarkets.reduce(
     (aggr, item) =>
@@ -142,7 +143,7 @@ export const executeArbitrageOrders = async (
   let resultantOpportunity = opportunity;
   const canFillAll = depthResults.every((r) => r.depthCheck.canFill);
   if (!canFillAll) {
-    logger.warn(`\n💰 Not all markets can be filled, skipping order execution`);
+    logger.warn(`\n💰 Not all ${useYesStrategy ? 'YES' : 'NO'} markets can be filled, skipping order execution`);
     return defaultResult;
     // TEMP disabled, creating too many requests
     // const hasLiquidity = depthResults.every((r) => r.depthCheck.totalAvailable >= result.normalizedShares);

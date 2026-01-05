@@ -1,4 +1,4 @@
-import type { EventRangeArbitrageOpportunity, Market, PolymarketEvent } from '../../../common/types';
+import type { EventRangeArbitrageOpportunity, Market, PolymarketEvent, PolymarketMarket } from '../../../common/types';
 import { DEFAULT_MIN_ORDER_SIZE } from '../../../config';
 import logger from '../../../utils/logger';
 import { rangeArbitrage } from '../../../utils/math/range-arbitrage';
@@ -8,7 +8,16 @@ import { executeArbitrageOrders } from '../order-execution';
 import { calculateNormalizedShares, isObviousMutuallyExclusive, isObviouslyNonExhaustive } from './utils';
 import { getTrades } from '../../polymarket/trade-history';
 import { getOpenOrders } from '../../polymarket/orders';
+import { MarketSide } from '../../../common/enums';
 
+const getOutcomePrice = (market: PolymarketMarket, side: MarketSide) => {
+  try {
+    const outcomePrices = JSON.parse(market.outcomePrices);
+    return parseFloat(outcomePrices[side === MarketSide.Yes ? 0 : 1]);
+  } catch (e) {
+    return 0;
+  }
+};
 /**
  * Checks a single event for range arbitrage opportunities
  */
@@ -19,13 +28,14 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
     return null;
   }
 
+  // console.log(activeMarkets.map((m) => `${m.bestAsk} | ${m.lastTradePrice} | ${m.bestBid}`).join('\n'));
   const marketsForAnalysis: Market[] = activeMarkets
     .filter((m) => !m.closed)
     .map((m) => ({
       marketId: m.id,
       question: m.question,
-      yesPrice: parseFloat(m.bestAsk || m.lastTradePrice) || 0.5,
-      noPrice: 1 - (parseFloat(m.bestAsk || m.lastTradePrice) || 0.5),
+      yesPrice: parseFloat(m.bestAsk || m.lastTradePrice) || 1,
+      noPrice: getOutcomePrice(m, MarketSide.No) || 1 - (parseFloat(m.bestAsk || m.lastTradePrice) || 0), // since no price is available for NO
       spread: m.spread,
     }));
 
@@ -35,11 +45,13 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
   const orderMinSize = Math.max(...activeMarkets.map((m) => m.orderMinSize ?? DEFAULT_MIN_ORDER_SIZE));
   const yesNormalizedShares = calculateNormalizedShares(marketsForAnalysis, true, orderMinSize);
   const noNormalizedShares = calculateNormalizedShares(marketsForAnalysis, false, orderMinSize);
-  const normalizedShares = Math.max(yesNormalizedShares, noNormalizedShares);
   const result = rangeArbitrage(marketsForAnalysis, 1);
   const hasArbitrage = result.arbitrageBundles.some((bundle) => bundle.isArbitrage);
   if (!hasArbitrage) return null;
-
+  const yesBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.Yes);
+  // const noBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.No);
+  const useYesStrategy = yesBundle?.isArbitrage;
+  const normalizedShares = useYesStrategy ? yesNormalizedShares : noNormalizedShares;
   // BIG BUG - When no opportunities are found, it buys YES
   // FIX BELOW
   // =========================
@@ -61,7 +73,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
       marketId: m.id,
       question: m.question,
       yesPrice: parseFloat(m.bestAsk || m.lastTradePrice) || 1,
-      noPrice: 1 - parseFloat(m.bestAsk || m.lastTradePrice || '0'),
+      noPrice: getOutcomePrice(m, MarketSide.No) || 1 - (parseFloat(m.bestAsk || m.lastTradePrice) || 0), // since no price is available for NO
       spread: m.spread,
     })),
     result: {
