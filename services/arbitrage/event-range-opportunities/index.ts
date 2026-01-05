@@ -9,15 +9,8 @@ import { calculateNormalizedShares, isObviousMutuallyExclusive, isObviouslyNonEx
 import { getTrades } from '../../polymarket/trade-history';
 import { getOpenOrders } from '../../polymarket/orders';
 import { MarketSide } from '../../../common/enums';
+import { getNoPrice, getYesPrice } from '../../../utils/prices';
 
-const getOutcomePrice = (market: PolymarketMarket, side: MarketSide) => {
-  try {
-    const outcomePrices = JSON.parse(market.outcomePrices);
-    return parseFloat(outcomePrices[side === MarketSide.Yes ? 0 : 1]);
-  } catch (e) {
-    return 0;
-  }
-};
 /**
  * Checks a single event for range arbitrage opportunities
  */
@@ -35,8 +28,8 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
     .map((m) => ({
       marketId: m.id,
       question: m.question,
-      yesPrice: parseFloat(m.bestAsk || m.lastTradePrice) || 1,
-      noPrice: getOutcomePrice(m, MarketSide.No) || 1 - (parseFloat(m.bestAsk || m.lastTradePrice) || 0), // since no price is available for NO
+      yesPrice: getYesPrice(m),
+      noPrice: getNoPrice(m), // since no price is available for NO
       spread: m.spread,
     }));
 
@@ -73,8 +66,8 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
     markets: activeMarkets.map((m) => ({
       marketId: m.id,
       question: m.question,
-      yesPrice: parseFloat(m.bestAsk || m.lastTradePrice) || 1,
-      noPrice: getOutcomePrice(m, MarketSide.No) || 1 - (parseFloat(m.bestAsk || m.lastTradePrice) || 0), // since no price is available for NO
+      yesPrice: getYesPrice(m),
+      noPrice: getNoPrice(m), // since no price is available for NO
       spread: m.spread,
     })),
     result: {

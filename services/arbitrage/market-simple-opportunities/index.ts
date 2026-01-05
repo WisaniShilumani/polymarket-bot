@@ -1,6 +1,7 @@
 import type { PolymarketMarket } from '../../../common/types';
 import { DEFAULT_MIN_ORDER_SIZE, MAX_ORDER_COST } from '../../../config';
 import logger from '../../../utils/logger';
+import { getNoPrice, getYesPrice } from '../../../utils/prices';
 import { getMarketsFromRest } from '../../polymarket/markets';
 import { getOpenOrders } from '../../polymarket/orders';
 
@@ -21,10 +22,8 @@ interface MarketSimpleArbitrageOpportunity {
  */
 const checkMarketForSimpleArbitrage = (market: PolymarketMarket): MarketSimpleArbitrageOpportunity | null => {
   const lastTradePrice = parseFloat(market.lastTradePrice);
-  const outcomePrices = JSON.parse(market.outcomePrices);
-  const noOutcomePrice = parseFloat(outcomePrices[1]);
-  const yesPrice = parseFloat(market.bestAsk) || parseFloat(market.lastTradePrice) || 0;
-  const noPrice = 1 - (parseFloat(market.bestBid) || 1 - noOutcomePrice || parseFloat(market.lastTradePrice) || 0);
+  const yesPrice = getYesPrice(market);
+  const noPrice = getNoPrice(market);
   const totalCostPerShare = yesPrice + noPrice;
   if (totalCostPerShare >= 1 || yesPrice === 0 || noPrice === 0) return null;
   const orderMinSize = market.orderMinSize ?? DEFAULT_MIN_ORDER_SIZE;

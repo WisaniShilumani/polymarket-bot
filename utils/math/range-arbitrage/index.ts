@@ -30,13 +30,12 @@ export function checkMutuallyExclusiveArbitrage(positions: Position[], marketIds
 
 export const rangeArbitrage = (markets: Market[], stakePerMarket = 1): RangeArbitrageResult => {
   const marketIds = markets.map((m) => m.marketId);
-  const hopefulDiscount = 0.005;
 
   // Strategy A: Buy YES on all ranges
   const yesPositions: Position[] = markets.map((m) => ({
     marketId: m.marketId,
     side: MarketSide.Yes,
-    price: m.yesPrice - hopefulDiscount,
+    price: m.yesPrice,
     size: stakePerMarket,
   }));
 
@@ -44,13 +43,12 @@ export const rangeArbitrage = (markets: Market[], stakePerMarket = 1): RangeArbi
   const noPositions: Position[] = markets.map((m) => ({
     marketId: m.marketId,
     side: MarketSide.No,
-    price: m.noPrice - hopefulDiscount,
+    price: m.noPrice,
     size: stakePerMarket,
   }));
 
   const yesArbitrage = checkMutuallyExclusiveArbitrage(yesPositions, marketIds);
   const noArbitrage = checkMutuallyExclusiveArbitrage(noPositions, marketIds);
-  // TODO - We're only returning the YES bundle for now because in some markets no is not = 1 - yesPrice
   const arbitrageBundles = [yesArbitrage, noArbitrage].filter((a) => a.isArbitrage);
   return {
     arbitrageBundles,
