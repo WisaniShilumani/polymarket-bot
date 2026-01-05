@@ -6,7 +6,7 @@ import { formatCurrency } from '../../../utils/accounting';
 
 export const validateOrder = (selectedBundle: ArbitrageResult, marketsWithTokens: MarketForOrder[], activeMarkets: PolymarketMarket[], eventId: string) => {
   const daysToExpiry = activeMarkets[0]?.endDate ? Math.abs(differenceInDays(new Date(activeMarkets[0].endDate), new Date())) : 7;
-  const minimumProfit = +(MIN_PROFIT_THRESHOLD * Math.min(daysToExpiry, 3)).toFixed(4); // accept bets with decent returns after 4 days
+  const minimumProfit = (MIN_PROFIT_THRESHOLD / 7) * (daysToExpiry + 1);
   if (!selectedBundle || selectedBundle.worstCaseProfit < minimumProfit) {
     logger.warn(
       `  ⚠️ [${eventId}] Profit ${formatCurrency(selectedBundle?.worstCaseProfit ?? 0)} is below minimum threshold of ${formatCurrency(

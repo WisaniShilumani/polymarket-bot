@@ -65,7 +65,7 @@ export const getOrderBookDepth = async (
   const avgFillPrice = totalCost / desiredSize;
   const midPrice = (parseFloat(orderBook.asks[0]?.price || '0') + parseFloat(orderBook.bids[0]?.price || '0')) / 2;
   const slippagePct = midPrice !== 0 ? Math.abs(avgFillPrice - midPrice) / midPrice : 0;
-  const maxAcceptableSpread = MAX_SPREAD + Math.min(daysToExpiry, 4) * 0.01; // not an exact science, but the more days we have, the more spread we can tolerate
+  const maxAcceptableSpread = Math.min(MAX_SPREAD + Math.min(daysToExpiry, 4) * 0.01, 0.04); // not an exact science, but the more days we have, the more spread we can tolerate
   const canFillWithAcceptablePrice = avgFillPrice <= desiredPrice + maxAcceptableSpread;
   const spread = avgFillPrice - desiredPrice;
   // logger.info(

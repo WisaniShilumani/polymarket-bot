@@ -96,13 +96,12 @@ export const executeArbitrageOrders = async (
   const useYesStrategy = yesBundle?.isArbitrage; // && (!noBundle || yesBundle.worstCaseProfit >= (noBundle?.worstCaseProfit ?? 0)); - in future try both
   const selectedBundle = useYesStrategy ? (yesBundle as ArbitrageResult) : (noBundle as ArbitrageResult);
   let strategy: 'YES' | 'NO' = useYesStrategy ? 'YES' : 'NO';
-  logger.info(`\n💰 Attempting ${strategy} arbitrage on event: ${opportunity.eventTitle} ${JSON.stringify(noBundle)}`);
+
   const tokenIndex = useYesStrategy ? 0 : 1;
   const orderCost = activeMarkets.reduce(
     (aggr, item) =>
       aggr +
-      (useYesStrategy ? parseFloat(item.bestAsk || item.lastTradePrice) : 1 - (parseFloat(item.bestAsk || item.lastTradePrice) || 0.5)) *
-        result.normalizedShares,
+      (useYesStrategy ? parseFloat(item.bestAsk || item.lastTradePrice) : 1 - (parseFloat(item.bestAsk || item.lastTradePrice) || 0)) * result.normalizedShares,
     0,
   );
 
@@ -111,9 +110,14 @@ export const executeArbitrageOrders = async (
     yesTokenId: JSON.parse(m.clobTokenIds as unknown as string)[0] as string,
     noTokenId: JSON.parse(m.clobTokenIds as unknown as string)[1] as string,
     question: m.question,
-    price: useYesStrategy ? parseFloat(m.bestAsk || m.lastTradePrice) || 0.5 : 1 - (parseFloat(m.bestAsk || m.lastTradePrice) || 0.5),
+    price: useYesStrategy ? parseFloat(m.bestAsk || m.lastTradePrice) || 1 : 1 - (parseFloat(m.bestAsk || m.lastTradePrice) || 0),
   }));
-
+  // logger.info(
+  //   `\n💰 Attempting ${strategy} arbitrage on event: [${opportunity.eventId}] ${opportunity.eventTitle} ${JSON.stringify({
+  //     selectedBundle,
+  //     marketsForOrders: marketsForOrders.map((p) => `${p.question} - ${p.price}`),
+  //   })}`,
+  // );
   if (!validateOrder(selectedBundle, marketsForOrders, activeMarkets, opportunity.eventId)) return defaultResult;
   const collateralBalance = await getAccountCollateralBalance();
   const availableCollateral = collateralBalance - totalOpenOrderValue;
