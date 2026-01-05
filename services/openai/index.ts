@@ -83,7 +83,7 @@ export const areBetsMutuallyExclusive = async (bets: string, eventId: string, ba
 
     logger.debug(`Cache miss for AI check...`);
     const response = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
+      model: 'gpt-4.1-nano',
       messages: [
         {
           role: 'system',

@@ -42,3 +42,63 @@ export const isObviousMutuallyExclusive = (eventTitle: string, markets: Polymark
 
   return false;
 };
+
+// Patterns for obviously non-exhaustive events (to ignore/skip)
+const spreadBettingPattern = /beat .+ by more than \d+\.?\d* (points?|goals?)/i;
+const priceThresholdPattern = /\$\w+ (be above|hit|reach|close above|drop below) \$?\d/i;
+const priceThresholdPattern2 = /.+(above|below|reach).+(on|by)/i;
+const floorPricePattern = /floor price .+ (be above|be over|reach) \d/i;
+const approvalRatingPattern = /approval rating.+ (be \d+%|or higher|or more)/i;
+const vaccineThresholdPattern = /\d+ million (people|Americans).+ (received|have)/i;
+const grossRevenuePattern = /gross more than \$?\d+ million/i;
+const koTkoPattern = /KO,? TKO/i;
+const singleOutcomeWinPattern = /^Will .+ win (the|their|a) .+(Championship|Tournament|Finals|Playoffs|Cup|Award)/i;
+const topRankPattern = /be (in the )?top \d+ (most played|games|on)/i;
+const thresholdOrMorePattern = /\d+\.?\d*%? or (more|higher)/i;
+const countThresholdPattern = /more than \d+.*(cases|people|votes|goals)/i;
+
+/**
+ * Identifies events that are obviously NOT mutually exclusive
+ * These should be skipped for arbitrage analysis
+ *
+ * TODO - can include more
+ */
+export const isObviouslyNonExhaustive = (eventTitle: string, markets: PolymarketMarket[]): boolean => {
+  // Single-market events are inherently exhaustive (Yes/No) but not useful for multi-market arbitrage
+  if (markets.length === 1) return true;
+
+  // Point/Goal spread betting - "Will X beat Y by more than Z points"
+  if (spreadBettingPattern.test(eventTitle)) return true;
+
+  // Price threshold questions - "Will $ETH be above $3,000"
+  if (priceThresholdPattern.test(eventTitle) || priceThresholdPattern2.test(eventTitle)) return true;
+
+  // NFT floor price thresholds
+  if (floorPricePattern.test(eventTitle)) return true;
+
+  // Approval rating thresholds
+  if (approvalRatingPattern.test(eventTitle)) return true;
+
+  // Vaccination thresholds
+  if (vaccineThresholdPattern.test(eventTitle)) return true;
+
+  // Box office/revenue thresholds
+  if (grossRevenuePattern.test(eventTitle)) return true;
+
+  // KO/TKO specific outcomes (doesn't cover decision wins)
+  if (koTkoPattern.test(eventTitle)) return true;
+
+  // Single team/person winning multi-participant events
+  if (singleOutcomeWinPattern.test(eventTitle)) return true;
+
+  // "Top X" rankings
+  if (topRankPattern.test(eventTitle)) return true;
+
+  // General "X% or more/higher" thresholds
+  if (thresholdOrMorePattern.test(eventTitle)) return true;
+
+  // Count thresholds - "more than X cases/people/votes"
+  if (countThresholdPattern.test(eventTitle)) return true;
+
+  return false;
+};

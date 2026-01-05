@@ -5,7 +5,7 @@ import { rangeArbitrage } from '../../../utils/math/range-arbitrage';
 import { areBetsMutuallyExclusive } from '../../openai';
 import { getEventsFromRest } from '../../polymarket/events';
 import { executeArbitrageOrders } from '../order-execution';
-import { calculateNormalizedShares, isObviousMutuallyExclusive } from './utils';
+import { calculateNormalizedShares, isObviousMutuallyExclusive, isObviouslyNonExhaustive } from './utils';
 import { getTrades } from '../../polymarket/trade-history';
 import { getOpenOrders } from '../../polymarket/orders';
 
@@ -15,6 +15,10 @@ import { getOpenOrders } from '../../polymarket/orders';
 const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableCollateral: number): Promise<EventRangeArbitrageOpportunity | null> => {
   const activeMarkets = event.markets.filter((m) => !m.closed);
   if (!activeMarkets || activeMarkets.length < 2) return null;
+  if (isObviouslyNonExhaustive(event.title, activeMarkets)) {
+    return null;
+  }
+
   const marketsForAnalysis: Market[] = activeMarkets
     .filter((m) => !m.closed)
     .map((m) => ({
