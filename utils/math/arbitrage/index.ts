@@ -1,6 +1,8 @@
 import type { ArbitrageResult, Position } from '../../../common/types';
 import { getPayout } from '../payout';
 import { getTotalCost } from '../cost/index';
+import { Side } from '@polymarket/clob-client';
+import { MarketSide } from '../../../common/enums';
 
 /**
  * Checks whether a portfolio of positions is a guaranteed arbitrage.
@@ -18,5 +20,6 @@ export const checkArbitrage = (positions: Position[]): ArbitrageResult => {
     worstCaseProfit,
     cost,
     minPayout,
+    side: positions[0]?.side || MarketSide.Yes,
   };
 };
