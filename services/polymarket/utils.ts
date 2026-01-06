@@ -16,6 +16,7 @@ export const buildEventsUrl = (options: GetEventsOptions = {}) => {
     start_date_min: startDate,
     ascending: 'false',
     order: 'creationDate',
+    tag_slug: 'soccer', // highly limiting, but seems to be the strategy for now
   });
 
   const url = `${POLYMARKET_API_URL}/events?${params.toString()}`;

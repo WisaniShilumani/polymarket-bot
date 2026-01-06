@@ -57,8 +57,6 @@ export const createArbitrageOrders = async (params: ArbitrageOrderParams): Promi
     return [];
   }
   const results: OrderResult[] = [];
-  logger.info(`\n🚀 Placing ${params.side} orders on ${params.markets.length} markets (${params.sharesPerMarket} shares each)...`);
-
   // Currently not guaranteed to fill all orders; we'll need to add a test first
   for (const market of params.markets) {
     const result = await createOrder({
@@ -82,7 +80,7 @@ export const createArbitrageOrders = async (params: ArbitrageOrderParams): Promi
   }
 
   const successCount = results.filter((r) => r.success).length;
-  logger.info(`\n📊 Orders completed: ${successCount}/${params.markets.length} successful`);
+  logger.info(`📊 Orders completed: ${successCount}/${params.markets.length} successful`);
   return results;
 };
 

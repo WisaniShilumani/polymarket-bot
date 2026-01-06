@@ -3,10 +3,17 @@ import logger from './utils/logger';
 import { scanMarketsForSimpleArbitrage } from './services/arbitrage/market-simple-opportunities';
 import { displayMarketSimpleArbitrageResults } from './services/arbitrage/logger';
 import { getAccountCollateralBalance } from './services/polymarket/account-balance';
+import { getTrades } from './services/polymarket/trade-history';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot');
 
 async function main() {
+  if (Number(1) === 1) {
+    const trades = await getTrades();
+    const totalFees = trades.reduce((acc, trade) => acc + Number(trade.fee_rate_bps), 0);
+    console.log(`Total fees: ${totalFees}`);
+    return;
+  }
   let opportunitiesFound = false;
   const collateralBalance = await getAccountCollateralBalance();
   while (!opportunitiesFound) {

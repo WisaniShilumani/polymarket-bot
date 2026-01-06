@@ -9,6 +9,7 @@ import { differenceInDays } from 'date-fns';
 import { validateCollateral, validateOrder } from './validate';
 import { MarketSide } from '../../../common/enums';
 import { getNoPrice, getYesPrice } from '../../../utils/prices';
+import { DEMO_MODE } from '../../../config';
 
 /**
  * Executes arbitrage orders for a given opportunity
@@ -47,8 +48,7 @@ export const executeArbitrageOrders = async (
   if (!validateOrder(selectedBundle, marketsForOrders, activeMarkets, opportunity.eventId)) return defaultResult;
   const collateralBalance = await getAccountCollateralBalance();
   const availableCollateral = collateralBalance - totalOpenOrderValue;
-  if (!validateCollateral(availableCollateral, orderCost, opportunity.eventId)) return defaultResult;
-
+  if (!DEMO_MODE && !validateCollateral(availableCollateral, orderCost, opportunity.eventId)) return defaultResult;
   const daysToExpiry = activeMarkets[0]?.endDate ? Math.abs(differenceInDays(new Date(activeMarkets[0].endDate), new Date())) : 7;
   const depthCheckPromises = marketsForOrders.map(async (market) => {
     const depthCheck = await getOrderBookDepth(
@@ -107,7 +107,11 @@ export const executeArbitrageOrders = async (
     //   })),
     // };
   } else {
-    logger.money(`\n💰 Executing ${strategy} arbitrage on event: ${opportunity.eventTitle} for ${formatCurrency(orderCost)}`);
+    logger.money(
+      `\n💰 Executing ${strategy} arbitrage on event: ${opportunity.eventTitle} for ${formatCurrency(orderCost)} with volume ${formatCurrency(
+        opportunity.volume,
+      )}`,
+    );
   }
 
   const orderResults = await createArbitrageOrders({

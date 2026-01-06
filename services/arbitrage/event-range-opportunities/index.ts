@@ -31,6 +31,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
       yesPrice: getYesPrice(m),
       noPrice: getNoPrice(m), // since no price is available for NO
       spread: m.spread,
+      volume: Number(m.volume || 0),
     }));
 
   const totalYesProbability = marketsForAnalysis.reduce((sum, m) => sum + m.yesPrice, 0);
@@ -63,12 +64,14 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
     eventId: event.id,
     eventSlug: event.slug,
     eventTitle: event.title,
+    volume: Number(event.volume || 0),
     markets: activeMarkets.map((m) => ({
       marketId: m.id,
       question: m.question,
       yesPrice: getYesPrice(m),
       noPrice: getNoPrice(m), // since no price is available for NO
       spread: m.spread,
+      volume: Number(m.volume || 0),
     })),
     result: {
       ...result,
@@ -135,6 +138,7 @@ export const scanEventsForRangeArbitrage = async (
       const sortedOpportunities = opportunities
         .filter((o) => !!o)
         .sort((a, b) => (b?.result.arbitrageBundles[0]?.worstCaseProfit ?? 0) - (a?.result.arbitrageBundles[0]?.worstCaseProfit ?? 0));
+
       logger.progress(`Found ${sortedOpportunities.length} opportunities in this batch...`);
       for (const opportunity of sortedOpportunities) {
         if (!opportunity) continue;

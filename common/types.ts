@@ -7,6 +7,7 @@ export interface Market {
   noPrice: number;
   spread: number;
   slug?: string;
+  volume: number;
 }
 
 export interface Position {
@@ -42,6 +43,7 @@ export interface PolymarketMarket {
   bestBid: string;
   bestAsk: string;
   lastTradePrice: string;
+  volume: string;
   volume24hr: string;
   volume1wk: string;
   volume1mo: string;
@@ -132,6 +134,7 @@ export interface EventRangeArbitrageOpportunity {
   eventId: string;
   eventSlug: string;
   eventTitle: string;
+  volume: number;
   markets: Market[];
   result: {
     arbitrageBundles: ArbitrageResult[];
