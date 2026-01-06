@@ -15,7 +15,7 @@ export function checkMutuallyExclusiveArbitrage(positions: Position[], marketIds
 
   const side = positions[0]?.side || MarketSide.Yes;
   const cost = getTotalCost(positions);
-  const payouts = marketIds.map((marketId) => getPayout(positions, marketId));
+  const payouts = positions.map(getPayout);
   const minPayout = Math.min(...payouts);
   const maxPayout = Math.max(...payouts);
   const worstCaseProfit = minPayout - cost;

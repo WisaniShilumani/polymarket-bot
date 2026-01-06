@@ -6,6 +6,7 @@ import { getAccountCollateralBalance } from './services/polymarket/account-balan
 import { getOpenOrders } from './services/polymarket/orders';
 import { loadCacheFromFile } from './services/openai';
 import { DEMO_MODE } from './config';
+import { sellGoodEventPositions } from './services/trading';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot...');
 
@@ -20,6 +21,7 @@ async function main() {
 
   let ordersPlaced = false; // Will run indefinitely
   while (!ordersPlaced) {
+    await sellGoodEventPositions();
     const [openOrders, collateralBalance] = await Promise.all([getOpenOrders(), getAccountCollateralBalance()]);
     const totalOpenOrderValue = openOrders.reduce((sum, o) => sum + parseFloat(o.price) * parseFloat(o.original_size), 0);
     const availableCollateral = collateralBalance - totalOpenOrderValue;

@@ -162,3 +162,22 @@ export interface TopOpportunity {
   url: string;
   endDate?: string;
 }
+
+export interface UserPosition {
+  proxyWallet: string;
+  asset: string;
+  conditionId: string;
+  eventId: string;
+  size: number;
+  avgPrice: number;
+  curPrice: number;
+  initialValue: number;
+  currentValue: number;
+  endDate: string;
+  outcome: string;
+  redeemable: boolean;
+  cashPnl: number;
+  percentPnl: number;
+  title: string;
+  eventSlug: string;
+}

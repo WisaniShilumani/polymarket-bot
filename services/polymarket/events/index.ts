@@ -18,3 +18,14 @@ export const getEventsFromRest = async (options: GetEventsOptions = {}): Promise
     throw error;
   }
 };
+
+export const getEvent = async (eventId: string): Promise<PolymarketEvent> => {
+  const url = `https://gamma-api.polymarket.com/events/${eventId}`;
+  try {
+    const event = await http.get(url).json<PolymarketEvent>();
+    return event;
+  } catch (error) {
+    logger.error('Error fetching event from Polymarket API:', error);
+    throw error;
+  }
+};

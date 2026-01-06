@@ -40,7 +40,7 @@ export const createOrder = async (params: OrderParams): Promise<OrderResult> => 
   }
 };
 
-const cancelOrder = async (orderID?: string): Promise<void> => {
+export const cancelOrder = async (orderID?: string): Promise<void> => {
   if (!orderID) return;
   const clobClient = await getClobClient();
   await clobClient.cancelOrder({ orderID });
