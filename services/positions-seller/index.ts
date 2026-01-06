@@ -13,6 +13,7 @@ const EXCLUSION_LIST = [114242]; // IRAN BET
 const isMonitorMode = !!DEMO_MODE;
 export const sellGoodEventPositions = async () => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
+  // TODO - CHECK POSITIONS WITH OUTSTANDING ORDERS, AND REPLACE THE ORDER WITH +0.1 IF THERE'S A SPREAD ISSUE
   logger.log(`Found ${positions.length} positions and ${orders.length} open orders`);
   const positionsByEventIdMap = new Map<string, UserPosition[]>();
   positions.forEach((position) => {
@@ -46,7 +47,7 @@ export const sellGoodEventPositions = async () => {
     const depthResults = await Promise.all(depthCheckPromises);
     const canFillAll = depthResults.every((r) => r.depthCheck.canFill);
     if (!canFillAll) {
-      logger.warn(`❌ Not all orders can be filled for event ${event.eventId}`);
+      logger.warn(`❌ Not all ${marketOrders.length} orders can be filled for event ${event.eventId}.`);
       continue;
     }
 

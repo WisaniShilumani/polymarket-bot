@@ -1,4 +1,4 @@
-import type { OrderBookSummary, Side } from '@polymarket/clob-client';
+import type { Side } from '@polymarket/clob-client';
 import { getClobClient } from '..';
 import { MAX_SPREAD } from '../../../config';
 

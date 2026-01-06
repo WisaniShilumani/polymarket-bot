@@ -3,13 +3,13 @@ import logger from './utils/logger';
 import { scanMarketsForSimpleArbitrage } from './services/arbitrage/market-simple-opportunities';
 import { displayMarketSimpleArbitrageResults } from './services/arbitrage/logger';
 import { getAccountCollateralBalance } from './services/polymarket/account-balance';
-import { sellGoodEventPositions } from './services/trading';
+import { fulfillOutstandingOrders } from './services/order-fulfiller';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot');
 
 async function main() {
   if (Number(1) === 1) {
-    await sellGoodEventPositions();
+    await fulfillOutstandingOrders();
     return;
   }
   let opportunitiesFound = false;
