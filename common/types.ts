@@ -71,6 +71,7 @@ export interface MarketForOrder {
   noTokenId: string;
   question: string;
   price: number;
+  endDate: string;
 }
 
 interface Tag {

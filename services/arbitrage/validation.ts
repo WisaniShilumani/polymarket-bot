@@ -1,8 +1,8 @@
 import { differenceInDays } from 'date-fns';
-import type { ArbitrageResult, MarketForOrder, PolymarketMarket } from '../../../common/types';
-import { MAX_ORDER_COST, MIN_PROFIT_THRESHOLD, MIN_ROI_THRESHOLD } from '../../../config';
-import { logger } from '../../../utils/logger';
-import { formatCurrency } from '../../../utils/accounting';
+import type { ArbitrageResult, MarketForOrder, PolymarketMarket } from '../../common/types';
+import { MAX_ORDER_COST, MIN_PROFIT_THRESHOLD, MIN_ROI_THRESHOLD } from '../../config';
+import { logger } from '../../utils/logger';
+import { formatCurrency } from '../../utils/accounting';
 
 export const validateOrder = (selectedBundle: ArbitrageResult, marketsWithTokens: MarketForOrder[], activeMarkets: PolymarketMarket[], eventId: string) => {
   const daysToExpiry = activeMarkets[0]?.endDate ? Math.abs(differenceInDays(new Date(activeMarkets[0].endDate), new Date())) : 7;

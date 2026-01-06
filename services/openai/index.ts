@@ -77,10 +77,6 @@ export const areBetsMutuallyExclusive = async (bets: string, eventId: string, ba
       return cachedResult;
     }
 
-    if (balance < 10) {
-      return false;
-    }
-
     logger.debug(`Cache miss for AI check...`);
     const response = await openai.chat.completions.create({
       model: 'gpt-4.1-nano',

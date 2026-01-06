@@ -1,15 +1,18 @@
-import type { EventRangeArbitrageOpportunity, Market, PolymarketEvent, PolymarketMarket } from '../../../common/types';
+import type { ArbitrageResult, EventRangeArbitrageOpportunity, PolymarketEvent } from '../../../common/types';
 import { DEFAULT_MIN_ORDER_SIZE } from '../../../config';
 import logger from '../../../utils/logger';
 import { rangeArbitrage } from '../../../utils/math/range-arbitrage';
 import { areBetsMutuallyExclusive } from '../../openai';
 import { getEventsFromRest } from '../../polymarket/events';
 import { executeArbitrageOrders } from '../order-execution';
-import { calculateNormalizedShares, isObviousMutuallyExclusive, isObviouslyNonExhaustive } from './utils';
+import { calculateNormalizedShares, isObviousMutuallyExclusive } from './utils';
 import { getTrades } from '../../polymarket/trade-history';
 import { getOpenOrders } from '../../polymarket/orders';
 import { MarketSide } from '../../../common/enums';
 import { getNoPrice, getYesPrice } from '../../../utils/prices';
+import { getMarketsForAnalysis, getMarketsForOrders } from '../utils';
+import { checkBooks } from '../check-books';
+import { validateOrder } from '../validation';
 
 /**
  * Checks a single event for range arbitrage opportunities
@@ -17,23 +20,7 @@ import { getNoPrice, getYesPrice } from '../../../utils/prices';
 const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableCollateral: number): Promise<EventRangeArbitrageOpportunity | null> => {
   const activeMarkets = event.markets.filter((m) => !m.closed);
   if (!activeMarkets || activeMarkets.length < 2) return null;
-  if (isObviouslyNonExhaustive(event.title, activeMarkets)) {
-    logger.warn(`  ⚠️ [${event.title}] Event is obviously non-exhaustive, skipping`);
-    return null;
-  }
-
-  // console.log(activeMarkets.map((m) => `${m.bestAsk} | ${m.lastTradePrice} | ${m.bestBid}`).join('\n'));
-  const marketsForAnalysis: Market[] = activeMarkets
-    .filter((m) => !m.closed)
-    .map((m) => ({
-      marketId: m.id,
-      question: m.question,
-      yesPrice: getYesPrice(m),
-      noPrice: getNoPrice(m), // since no price is available for NO
-      spread: m.spread,
-      volume: Number(m.volume || 0),
-    }));
-
+  const marketsForAnalysis = getMarketsForAnalysis(activeMarkets);
   const totalYesProbability = marketsForAnalysis.reduce((sum, m) => sum + m.yesPrice, 0);
   const totalNoProbability = marketsForAnalysis.reduce((sum, m) => sum + (1 - m.yesPrice), 0);
   if (totalYesProbability < 0.1 || totalNoProbability < 0.1) return null;
@@ -44,20 +31,24 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
   const hasArbitrage = result.arbitrageBundles.some((bundle) => bundle.isArbitrage);
   if (!hasArbitrage) return null;
   const yesBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.Yes);
-  // const noBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.No);
-  const useYesStrategy = yesBundle?.isArbitrage;
+  const noBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.No);
+  const useYesStrategy = !!yesBundle?.isArbitrage;
   const normalizedShares = useYesStrategy ? yesNormalizedShares : noNormalizedShares;
-  // BIG BUG - When no opportunities are found, it buys YES
-  // FIX BELOW
-  // =========================
-  // const yesBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.Yes);
-  // const noBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.No);
-  // const useYesStrategy = yesBundle && (!noBundle || yesBundle.worstCaseProfit >= (noBundle?.worstCaseProfit ?? 0));
-  // const selectedBundle = useYesStrategy ? yesBundle : noBundle;
-  // console.log(JSON.stringify({ result, markets: marketsForAnalysis }, null, 2));
-  const betsDescription = '## Title - ' + event.title + '\n' + activeMarkets.map((m, i) => `${i + 1}. ${m.question}`).join('\n');
+  const selectedBundle = useYesStrategy ? (yesBundle as ArbitrageResult) : (noBundle as ArbitrageResult);
   const tags = event.tags?.map((t) => t.slug) || [];
+  const marketsForOrders = getMarketsForOrders(activeMarkets, useYesStrategy);
+  if (!validateOrder(selectedBundle, marketsForOrders, activeMarkets, event.id)) return null;
   const isObviousExclusiveCase = isObviousMutuallyExclusive(event.title, activeMarkets, tags);
+  if (!isObviousExclusiveCase) {
+    // check if the markets can be filled before making expensive AI call
+    const { canFillAll } = await checkBooks(marketsForOrders, useYesStrategy, normalizedShares);
+    if (!canFillAll) {
+      logger.warn(`\n💰 Not all ${useYesStrategy ? 'YES' : 'NO'} markets can be filled, skipping AI check`);
+      return null;
+    }
+  }
+
+  const betsDescription = '## Title - ' + event.title + '\n' + activeMarkets.map((m, i) => `${i + 1}. ${m.question}`).join('\n');
   const isMutuallyExclusive = isObviousExclusiveCase || (await areBetsMutuallyExclusive(betsDescription, event.id, availableCollateral));
   if (!isMutuallyExclusive) return null;
   return {
@@ -69,7 +60,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
       marketId: m.id,
       question: m.question,
       yesPrice: getYesPrice(m),
-      noPrice: getNoPrice(m), // since no price is available for NO
+      noPrice: getNoPrice(m),
       spread: m.spread,
       volume: Number(m.volume || 0),
     })),
@@ -108,7 +99,8 @@ export const scanEventsForRangeArbitrage = async (
       const tradeMarketIds = trades.map((t) => t.market);
       const openOrderMarketIds = openOrders.map((o) => o.market);
       const totalOpenOrderValue = openOrders.reduce((sum, o) => sum + parseFloat(o.price) * parseFloat(o.original_size), 0);
-      const existingMarketIds = new Set([...tradeMarketIds, ...openOrderMarketIds]);
+      const openOrderMarketIdsSet = new Set(openOrderMarketIds);
+      const tradeMarketIdsSet = new Set(tradeMarketIds);
       if (events.length === 0) {
         logger.info('No more events to scan.');
         hasMoreEvents = false;
@@ -126,8 +118,15 @@ export const scanEventsForRangeArbitrage = async (
       for (const batch of batches) {
         const batchResults = await Promise.all(
           batch.map(async (event) => {
-            const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
-            if (hasTrade) return null;
+            const hasOpenOrder = event.markets.some((m) => openOrderMarketIdsSet.has(m.conditionId));
+            if (hasOpenOrder) return null;
+            if (tradeMarketIdsSet.has(event.id)) logger.warn('Checking existing trade...');
+            // Might be dangerous but who cares
+            // const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
+            // if (hasTrade) {
+            //   logger.warn(`\n💰 Event ${event.title} has trade, skipping`);
+            //   return null;
+            // }
             return checkEventForRangeArbitrage(event, availableCollateral);
           }),
         );
