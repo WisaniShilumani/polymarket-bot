@@ -6,10 +6,11 @@ import logger from '../../utils/logger';
 import { Side, type OpenOrder } from '@polymarket/clob-client';
 import { getOrderBookDepth } from '../polymarket/book-depth';
 import { getEvent } from '../polymarket/events';
+import { DEMO_MODE } from '../../config';
 
 const minProfit = 0.02;
 const EXCLUSION_LIST = [114242]; // IRAN BET
-const isMonitorMode = true;
+const isMonitorMode = !!DEMO_MODE;
 export const sellGoodEventPositions = async () => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
   logger.log(`Found ${positions.length} positions and ${orders.length} open orders`);

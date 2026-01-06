@@ -140,7 +140,6 @@ export const scanEventsForRangeArbitrage = async (
         .filter((o) => !!o)
         .sort((a, b) => (b?.result.arbitrageBundles[0]?.worstCaseProfit ?? 0) - (a?.result.arbitrageBundles[0]?.worstCaseProfit ?? 0));
 
-      logger.progress(`Found ${sortedOpportunities.length} opportunities in this batch...`);
       for (const opportunity of sortedOpportunities) {
         if (!opportunity) continue;
 
