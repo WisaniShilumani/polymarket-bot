@@ -25,8 +25,6 @@ export const fulfillOutstandingOrders = async () => {
     const event = await getEvent(eventId);
     if (!event) continue;
     const relatedOrder = orders.find((o) => event.markets.some((m) => m.conditionId === o.market && o.side === Side.BUY)) as unknown as OpenOrder;
-    const marketForOrder = event.markets.find((m) => m.conditionId === relatedOrder?.market);
-    console.log({ marketForOrder, relatedOrder });
     if (relatedOrder) {
       const hoursSinceCreation = Math.abs(differenceInHours(new Date(), new Date(relatedOrder.created_at * 1000)));
       if (hoursSinceCreation < 8) continue;
