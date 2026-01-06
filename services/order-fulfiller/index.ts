@@ -33,7 +33,7 @@ export const fulfillOutstandingOrders = async () => {
       if (!relatedOrder.price) console.log(JSON.stringify({ relatedOrder }, null, 2));
       const newOrder: OrderParams = {
         tokenId: relatedOrder.asset_id,
-        price: +relatedOrder.price,
+        price: +relatedOrder.price + 0.01,
         size: Number(relatedOrder.original_size) - Number(relatedOrder.size_matched),
         side: Side.BUY,
       };
