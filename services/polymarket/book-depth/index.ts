@@ -1,4 +1,4 @@
-import type { Side } from '@polymarket/clob-client';
+import type { OrderBookSummary, Side } from '@polymarket/clob-client';
 import { getClobClient } from '..';
 import { MAX_SPREAD } from '../../../config';
 
@@ -21,65 +21,72 @@ export const getOrderBookDepth = async (
   desiredPrice: number,
   daysToExpiry: number,
   allowSpread: boolean = true,
+  retries: number = 0,
 ): Promise<OrderBookDepth> => {
-  const client = await getClobClient();
-  const orderBook = await client.getOrderBook(tokenId);
+  try {
+    const client = await getClobClient();
+    const orderBook = await client.getOrderBook(tokenId);
 
-  // For BUY orders, we take from ASKs (sellers)
-  // For SELL orders, we take from BIDs (buyers)
-  const orders =
-    side === 'BUY'
-      ? orderBook.asks?.sort((a, b) => parseFloat(a.price) - parseFloat(b.price)) || []
-      : orderBook.bids?.sort((a, b) => parseFloat(b.price) - parseFloat(a.price)) || [];
+    // For BUY orders, we take from ASKs (sellers)
+    // For SELL orders, we take from BIDs (buyers)
+    const orders =
+      side === 'BUY'
+        ? orderBook.asks?.sort((a, b) => parseFloat(a.price) - parseFloat(b.price)) || []
+        : orderBook.bids?.sort((a, b) => parseFloat(b.price) - parseFloat(a.price)) || [];
 
-  let remainingSize = desiredSize;
-  let totalCost = 0;
-  let totalFilled = 0;
-  let worstPrice = 0;
+    let remainingSize = desiredSize;
+    let totalCost = 0;
+    let totalFilled = 0;
+    let worstPrice = 0;
 
-  for (const order of orders) {
-    const price = parseFloat(order.price);
-    const size = parseFloat(order.size);
+    for (const order of orders) {
+      const price = parseFloat(order.price);
+      const size = parseFloat(order.size);
+      const fillSize = Math.min(remainingSize, size);
+      totalCost += fillSize * price;
+      totalFilled += fillSize;
+      worstPrice = price;
+      remainingSize -= fillSize;
 
-    const fillSize = Math.min(remainingSize, size);
+      if (remainingSize <= 0) break;
+    }
 
-    totalCost += fillSize * price;
-    totalFilled += fillSize;
-    worstPrice = price;
-    remainingSize -= fillSize;
+    if (remainingSize > 0) {
+      // logger.info(`❌ Not enough order book depth to fill the order`);
+      return {
+        canFill: false,
+        avgFillPrice: 0,
+        worstFillPrice: 0,
+        slippagePct: Infinity,
+        totalAvailable: totalFilled,
+        spread: 0,
+      };
+    }
 
-    if (remainingSize <= 0) break;
-  }
-
-  if (remainingSize > 0) {
-    // logger.info(`❌ Not enough order book depth to fill the order`);
+    const avgFillPrice = totalCost / desiredSize;
+    const midPrice = (parseFloat(orderBook.asks[0]?.price || '0') + parseFloat(orderBook.bids[0]?.price || '0')) / 2;
+    const slippagePct = midPrice !== 0 ? Math.abs(avgFillPrice - midPrice) / midPrice : 0;
+    const maxAcceptableSpread = allowSpread ? Math.min(MAX_SPREAD + Math.min(daysToExpiry, 4) * 0.01, 0.06) : 0; // not an exact science, but the more days we have, the more spread we can tolerate
+    const canFillWithAcceptablePrice = side === 'BUY' ? avgFillPrice <= desiredPrice + maxAcceptableSpread : avgFillPrice >= desiredPrice - maxAcceptableSpread;
+    const spread = avgFillPrice - desiredPrice;
+    // logger.info(
+    //   `${canFillWithAcceptablePrice ? '✅' : '❌'} Price difference: ${formatCurrency(avgFillPrice - desiredPrice)} [${formatCurrency(
+    //     avgFillPrice,
+    //   )}/${formatCurrency(desiredPrice)}](spread: ${formatCurrency(maxAcceptableSpread)})`,
+    // );
     return {
-      canFill: false,
-      avgFillPrice: 0,
-      worstFillPrice: 0,
-      slippagePct: Infinity,
+      canFill: canFillWithAcceptablePrice,
+      avgFillPrice,
+      worstFillPrice: worstPrice,
+      slippagePct,
       totalAvailable: totalFilled,
-      spread: 0,
+      spread,
     };
+  } catch (error) {
+    if (retries < 3) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      return getOrderBookDepth(tokenId, side, desiredSize, desiredPrice, daysToExpiry, allowSpread, retries + 1);
+    }
+    throw error;
   }
-
-  const avgFillPrice = totalCost / desiredSize;
-  const midPrice = (parseFloat(orderBook.asks[0]?.price || '0') + parseFloat(orderBook.bids[0]?.price || '0')) / 2;
-  const slippagePct = midPrice !== 0 ? Math.abs(avgFillPrice - midPrice) / midPrice : 0;
-  const maxAcceptableSpread = allowSpread ? Math.min(MAX_SPREAD + Math.min(daysToExpiry, 4) * 0.01, 0.06) : 0; // not an exact science, but the more days we have, the more spread we can tolerate
-  const canFillWithAcceptablePrice = side === 'BUY' ? avgFillPrice <= desiredPrice + maxAcceptableSpread : avgFillPrice >= desiredPrice - maxAcceptableSpread;
-  const spread = avgFillPrice - desiredPrice;
-  // logger.info(
-  //   `${canFillWithAcceptablePrice ? '✅' : '❌'} Price difference: ${formatCurrency(avgFillPrice - desiredPrice)} [${formatCurrency(
-  //     avgFillPrice,
-  //   )}/${formatCurrency(desiredPrice)}](spread: ${formatCurrency(maxAcceptableSpread)})`,
-  // );
-  return {
-    canFill: canFillWithAcceptablePrice,
-    avgFillPrice,
-    worstFillPrice: worstPrice,
-    slippagePct,
-    totalAvailable: totalFilled,
-    spread,
-  };
 };
