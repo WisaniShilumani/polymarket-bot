@@ -20,6 +20,7 @@ export interface Position {
 export interface ArbitrageResult {
   isArbitrage: boolean;
   worstCaseProfit: number;
+  bestCaseProfit: number;
   cost: number;
   minPayout: number;
   side: MarketSide;
@@ -126,7 +127,8 @@ export interface MarketSimpleArbitrageOpportunity {
   yesPrice: number;
   noPrice: number;
   totalCost: number;
-  guaranteedProfit: number;
+  worstCaseProfit: number;
+  bestCaseProfit: number;
   roi: number;
 }
 
@@ -142,4 +144,18 @@ export interface EventRangeArbitrageOpportunity {
   };
   hasArbitrage: boolean;
   eventData: PolymarketEvent; // Full event JSON
+}
+
+// LOGGER
+export interface TopOpportunity {
+  marketId: string;
+  type: string;
+  roi: number;
+  worstCaseProfit: number;
+  bestCaseProfit: number;
+  cost: number;
+  question: string;
+  bets: string[];
+  url: string;
+  endDate?: string;
 }

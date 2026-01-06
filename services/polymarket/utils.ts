@@ -5,7 +5,7 @@ import { POLYMARKET_API_URL } from '../../config';
 export const buildEventsUrl = (options: GetEventsOptions = {}) => {
   const today = addMinutes(new Date(), 5).toISOString();
   const startDate = subMonths(new Date(), 12).toISOString();
-  const maxEndDate = addDays(new Date(), 2).toISOString();
+  const maxEndDate = addDays(new Date(), 3).toISOString();
   const { limit = 100, offset = 0, closed = false } = options;
   const params = new URLSearchParams({
     limit: limit.toString(),
@@ -16,7 +16,7 @@ export const buildEventsUrl = (options: GetEventsOptions = {}) => {
     start_date_min: startDate,
     ascending: 'false',
     order: 'creationDate',
-    tag_slug: 'soccer', // highly limiting, but seems to be the strategy for now
+    // tag_slug: 'soccer', // highly limiting, but seems to be the strategy for now
   });
 
   const url = `${POLYMARKET_API_URL}/events?${params.toString()}`;

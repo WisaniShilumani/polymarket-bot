@@ -1,21 +1,9 @@
-import type { PolymarketMarket } from '../../../common/types';
+import type { MarketSimpleArbitrageOpportunity, PolymarketMarket } from '../../../common/types';
 import { DEFAULT_MIN_ORDER_SIZE, MAX_ORDER_COST } from '../../../config';
 import logger from '../../../utils/logger';
 import { getNoPrice, getYesPrice } from '../../../utils/prices';
 import { getMarketsFromRest } from '../../polymarket/markets';
 import { getOpenOrders } from '../../polymarket/orders';
-
-interface MarketSimpleArbitrageOpportunity {
-  marketId: string;
-  slug: string;
-  question: string;
-  yesPrice: number; // Actual cost for YES order
-  noPrice: number; // Actual cost for NO order
-  totalCost: number;
-  guaranteedProfit: number;
-  roi: number;
-  marketData: PolymarketMarket; // Full market JSON
-}
 
 /**
  * Checks if a market has a simple arbitrage opportunity (YES + NO < 1)
@@ -55,7 +43,8 @@ const checkMarketForSimpleArbitrage = (market: PolymarketMarket): MarketSimpleAr
     yesPrice: yesCost, // Store actual cost, not price per share
     noPrice: noCost, // Store actual cost, not price per share
     totalCost,
-    guaranteedProfit,
+    worstCaseProfit: guaranteedProfit,
+    bestCaseProfit: guaranteedProfit,
     roi,
     marketData: market, // Store full market JSON
   };
@@ -99,7 +88,11 @@ export const scanMarketsForSimpleArbitrage = async (
         if (opportunity && opportunity.roi > 0.2 && opportunity.totalCost < maxOrderCost) {
           opportunities.push(opportunity);
           foundInBatch++;
-          logger.success(`  ✅ Found: [${opportunity.marketId}] Profit: $${opportunity.guaranteedProfit.toFixed(4)} (${opportunity.roi.toFixed(2)}% ROI)`);
+          logger.success(
+            `  ✅ Found: [${opportunity.marketId}] Profit: $${opportunity.worstCaseProfit.toFixed(4)} - $${opportunity.bestCaseProfit.toFixed(
+              4,
+            )} (${opportunity.roi.toFixed(2)}% ROI)`,
+          );
         }
       }
 

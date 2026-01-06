@@ -17,11 +17,14 @@ export function checkMutuallyExclusiveArbitrage(positions: Position[], marketIds
   const cost = getTotalCost(positions);
   const payouts = marketIds.map((marketId) => getPayout(positions, marketId));
   const minPayout = Math.min(...payouts);
+  const maxPayout = Math.max(...payouts);
   const worstCaseProfit = minPayout - cost;
+  const bestCaseProfit = maxPayout - cost;
 
   return {
     isArbitrage: worstCaseProfit > 0.01,
     worstCaseProfit,
+    bestCaseProfit,
     cost,
     minPayout,
     side,

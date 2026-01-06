@@ -11,7 +11,7 @@ export const validateOrder = (selectedBundle: ArbitrageResult, marketsWithTokens
     logger.warn(
       `  ⚠️ [${eventId}] Profit ${formatCurrency(selectedBundle?.worstCaseProfit ?? 0)} is below minimum threshold of ${formatCurrency(
         minimumProfit,
-      )}, skipping order creation`,
+      )}, skipping order creation (Best case profit: ${formatCurrency(selectedBundle?.bestCaseProfit ?? 0)})`,
     );
     return false;
   }

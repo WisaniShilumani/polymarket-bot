@@ -1,7 +1,6 @@
 import type { ArbitrageResult, Position } from '../../../common/types';
 import { getPayout } from '../payout';
 import { getTotalCost } from '../cost/index';
-import { Side } from '@polymarket/clob-client';
 import { MarketSide } from '../../../common/enums';
 
 /**
@@ -10,14 +9,16 @@ import { MarketSide } from '../../../common/enums';
  */
 export const checkArbitrage = (positions: Position[]): ArbitrageResult => {
   const cost = getTotalCost(positions);
-  const payoutYes = getPayout(positions, positions[0]?.marketId || '');
-  const payoutNo = getPayout(positions, positions[0]?.marketId || '');
-  const minPayout = Math.min(payoutYes, payoutNo);
+  const allPayouts = positions.map((p) => getPayout(positions, p.marketId));
+  const minPayout = Math.min(...allPayouts);
+  const maxPayout = Math.max(...allPayouts);
   const worstCaseProfit = minPayout - cost;
+  const bestCaseProfit = maxPayout - cost;
 
   return {
     isArbitrage: worstCaseProfit > 0.01,
     worstCaseProfit,
+    bestCaseProfit,
     cost,
     minPayout,
     side: positions[0]?.side || MarketSide.Yes,

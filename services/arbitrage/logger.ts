@@ -1,17 +1,5 @@
-import type { EventRangeArbitrageOpportunity, MarketSimpleArbitrageOpportunity } from '../../common/types';
+import type { EventRangeArbitrageOpportunity, MarketSimpleArbitrageOpportunity, TopOpportunity } from '../../common/types';
 import logger from '../../utils/logger';
-
-interface TopOpportunity {
-  marketId: string;
-  type: string;
-  roi: number;
-  profit: number;
-  cost: number;
-  question: string;
-  bets: string[];
-  url: string;
-  endDate?: string;
-}
 
 export const displayMarketSimpleArbitrageResults = (opportunities: MarketSimpleArbitrageOpportunity[]) => {
   logger.log('\n\n');
@@ -35,12 +23,14 @@ export const displayMarketSimpleArbitrageResults = (opportunities: MarketSimpleA
       logger.info(`   NO Order Cost:  $${opp.noPrice.toFixed(2)}`);
       logger.log(`   ─────────────────────────────────`);
       logger.money(`   Total Cost:         $${opp.totalCost.toFixed(2)}`);
-      logger.money(`   Guaranteed Profit:  $${opp.guaranteedProfit.toFixed(2)}`);
+      logger.money(`   Worst Case Profit:  $${opp.worstCaseProfit.toFixed(2)}`);
+      logger.money(`   Best Case Profit:   $${opp.bestCaseProfit.toFixed(2)}`);
       logger.success(`   ROI:                ${opp.roi.toFixed(2)}%`);
       logger.log('');
     });
 
-    const totalProfit = opportunities.reduce((sum, opp) => sum + opp.guaranteedProfit, 0);
+    const totalProfit = opportunities.reduce((sum, opp) => sum + opp.worstCaseProfit, 0);
+    const totalBestCaseProfit = opportunities.reduce((sum, opp) => sum + opp.bestCaseProfit, 0);
     const totalCost = opportunities.reduce((sum, opp) => sum + opp.totalCost, 0);
     const avgROI = opportunities.reduce((sum, opp) => sum + opp.roi, 0) / opportunities.length;
     logger.header('═'.repeat(70));
@@ -48,6 +38,7 @@ export const displayMarketSimpleArbitrageResults = (opportunities: MarketSimpleA
     logger.header('═'.repeat(70));
     logger.info(`Total Opportunities: ${opportunities.length}`);
     logger.money(`Total Potential Profit: $${totalProfit.toFixed(2)}`);
+    logger.money(`Total Best Case Profit: $${totalBestCaseProfit.toFixed(2)}`);
     logger.money(`Total Required Capital: $${totalCost.toFixed(2)}`);
     logger.success(`Average ROI: ${avgROI.toFixed(2)}%`);
     logger.success(`Best ROI: ${opportunities[0]?.roi.toFixed(2)}%`);
@@ -119,7 +110,8 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
       marketId: opp.marketId,
       type: 'MARKET',
       roi: opp.roi,
-      profit: opp.guaranteedProfit,
+      worstCaseProfit: opp.worstCaseProfit,
+      bestCaseProfit: opp.bestCaseProfit,
       cost: opp.totalCost,
       question: opp.question,
       bets: [`Buy YES for $${opp.yesPrice.toFixed(2)}`, `Buy NO for $${opp.noPrice.toFixed(2)}`],
@@ -136,7 +128,8 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
       allOpportunities.push({
         type: 'EVENT',
         roi: (bestBundle.worstCaseProfit / bestBundle.cost) * 100,
-        profit: bestBundle.worstCaseProfit,
+        worstCaseProfit: bestBundle.worstCaseProfit,
+        bestCaseProfit: bestBundle.bestCaseProfit,
         cost: bestBundle.cost,
         question: opp.eventTitle,
         marketId: opp.markets[0]?.marketId || '',
@@ -159,7 +152,7 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
     const num = (index + 1).toString().padEnd(2);
     const type = opp.type.padEnd(8);
     const roi = `${opp.roi.toFixed(2)}%`.padEnd(8);
-    const profit = `$${opp.profit.toFixed(2)}`.padEnd(9);
+    const profit = `$${opp.worstCaseProfit.toFixed(2)}`.padEnd(9);
     const cost = `$${opp.cost.toFixed(2)}`.padEnd(8);
 
     logger.log(`│ ${num} │ ${type} │ ${roi} │ ${profit} │ ${cost} │`);
@@ -172,7 +165,11 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
   logger.log('');
   topOpportunities.slice(0, 10).forEach((opp, index) => {
     logger.highlight(`${index + 1}. ${opp.question}`);
-    logger.info(`   Type: ${opp.type} | ROI: ${opp.roi.toFixed(2)}% | Profit: $${opp.profit.toFixed(2)} | Cost: $${opp.cost.toFixed(2)}`);
+    logger.info(
+      `   Type: ${opp.type} | ROI: ${opp.roi.toFixed(2)}% | Profit: $${opp.worstCaseProfit.toFixed(2)} (Best: $${opp.bestCaseProfit.toFixed(
+        2,
+      )}) | Cost: $${opp.cost.toFixed(2)}`,
+    );
     logger.info(`   URL: ${opp.url}`);
     logger.info(`   End Date: ${opp.endDate ? new Date(opp.endDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}`);
     logger.debug(`   API: https://gamma-api.polymarket.com/markets/${opp.marketId}`);
@@ -183,7 +180,7 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
     logger.log('');
   });
 
-  const totalProfit = allOpportunities.reduce((sum, opp) => sum + opp.profit, 0);
+  const totalProfit = allOpportunities.reduce((sum, opp) => sum + opp.worstCaseProfit, 0);
   const totalCost = allOpportunities.reduce((sum, opp) => sum + opp.cost, 0);
   const avgROI = allOpportunities.reduce((sum, opp) => sum + opp.roi, 0) / allOpportunities.length;
   logger.header('═'.repeat(70));
