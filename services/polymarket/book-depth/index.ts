@@ -20,6 +20,7 @@ export const getOrderBookDepth = async (
   desiredSize: number,
   desiredPrice: number,
   daysToExpiry: number,
+  allowSpread: boolean = true,
 ): Promise<OrderBookDepth> => {
   const client = await getClobClient();
   const orderBook = await client.getOrderBook(tokenId);
@@ -65,8 +66,8 @@ export const getOrderBookDepth = async (
   const avgFillPrice = totalCost / desiredSize;
   const midPrice = (parseFloat(orderBook.asks[0]?.price || '0') + parseFloat(orderBook.bids[0]?.price || '0')) / 2;
   const slippagePct = midPrice !== 0 ? Math.abs(avgFillPrice - midPrice) / midPrice : 0;
-  const maxAcceptableSpread = Math.min(MAX_SPREAD + Math.min(daysToExpiry, 4) * 0.01, 0.06); // not an exact science, but the more days we have, the more spread we can tolerate
-  const canFillWithAcceptablePrice = avgFillPrice <= desiredPrice + maxAcceptableSpread;
+  const maxAcceptableSpread = allowSpread ? Math.min(MAX_SPREAD + Math.min(daysToExpiry, 4) * 0.01, 0.06) : 0; // not an exact science, but the more days we have, the more spread we can tolerate
+  const canFillWithAcceptablePrice = side === 'BUY' ? avgFillPrice <= desiredPrice + maxAcceptableSpread : avgFillPrice >= desiredPrice - maxAcceptableSpread;
   const spread = avgFillPrice - desiredPrice;
   // logger.info(
   //   `${canFillWithAcceptablePrice ? '✅' : '❌'} Price difference: ${formatCurrency(avgFillPrice - desiredPrice)} [${formatCurrency(

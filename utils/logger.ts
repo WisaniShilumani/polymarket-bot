@@ -54,7 +54,7 @@ export const logger = {
   // Regular log with no color (for compatibility)
   log: (...args: any[]) => {
     console.log(...args);
-  }
+  },
 };
 
 // Export individual functions for convenience

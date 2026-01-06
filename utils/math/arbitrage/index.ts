@@ -9,7 +9,7 @@ import { MarketSide } from '../../../common/enums';
  */
 export const checkArbitrage = (positions: Position[]): ArbitrageResult => {
   const cost = getTotalCost(positions);
-  const allPayouts = positions.map((p) => getPayout(positions, p.marketId));
+  const allPayouts = positions.map(getPayout);
   const minPayout = Math.min(...allPayouts);
   const maxPayout = Math.max(...allPayouts);
   const worstCaseProfit = minPayout - cost;

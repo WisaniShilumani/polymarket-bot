@@ -5,7 +5,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node --import tsx index.ts",
+    "start": "FORCE_COLOR=1 node --import tsx index.ts 2>&1 | tee -a app.log",
     "start:production": "node --import tsx dist/index.js",
     "app": "tsx app.ts",
     "build": "tsc"

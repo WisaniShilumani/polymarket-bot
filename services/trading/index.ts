@@ -7,7 +7,7 @@ import { Side, type OpenOrder } from '@polymarket/clob-client';
 import { getOrderBookDepth } from '../polymarket/book-depth';
 import { getEvent } from '../polymarket/events';
 
-const minProfit = 0.05;
+const minProfit = 0.02;
 const EXCLUSION_LIST = [114242]; // IRAN BET
 const isMonitorMode = true;
 export const sellGoodEventPositions = async () => {
@@ -38,12 +38,12 @@ export const sellGoodEventPositions = async () => {
     }));
 
     const depthCheckPromises = marketOrders.map(async (order) => {
-      const depthCheck = await getOrderBookDepth(order.tokenId, Side.SELL, order.size, order.price, 0);
-      return depthCheck;
+      const depthCheck = await getOrderBookDepth(order.tokenId, Side.SELL, order.size, order.price, 0, false);
+      return { depthCheck, order };
     });
 
     const depthResults = await Promise.all(depthCheckPromises);
-    const canFillAll = depthResults.every((r) => r.canFill);
+    const canFillAll = depthResults.every((r) => r.depthCheck.canFill);
     if (!canFillAll) {
       logger.warn(`❌ Not all orders can be filled for event ${event.eventId}`);
       continue;
@@ -53,12 +53,12 @@ export const sellGoodEventPositions = async () => {
     const relatedOrders: OpenOrder[] = (orders.find((o) => eventData.markets.some((m) => m.conditionId === o.market)) as unknown as OpenOrder[]) || [];
     console.log(JSON.stringify({ relatedOrders }, null, 2));
     const results = [];
-    for (const order of marketOrders) {
+    for (const { order, depthCheck } of depthResults) {
       console.log(`Creating order for ${order.tokenId} at ${order.price} for ${order.size} shares`);
       if (!isMonitorMode) {
         const result = await createOrder({
           tokenId: order.tokenId,
-          price: order.price,
+          price: Math.max(order.price, depthCheck.avgFillPrice),
           size: order.size,
           side: Side.SELL,
         });
