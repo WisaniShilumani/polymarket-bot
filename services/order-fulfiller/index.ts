@@ -29,7 +29,7 @@ export const fulfillOutstandingOrders = async () => {
     console.log({ marketForOrder, relatedOrder });
     if (relatedOrder) {
       const hoursSinceCreation = Math.abs(differenceInHours(new Date(), new Date(relatedOrder.created_at * 1000)));
-      if (hoursSinceCreation < 3) continue;
+      if (hoursSinceCreation < 8) continue;
       // console.log(JSON.stringify({ relatedOrder, position: positions[0] }, null, 2)); ADD CREATED AT
       logger.warn(`Found related order for ${event.title} with ${relatedOrder.price} price and ${positions.length} existing positions.`);
       if (!relatedOrder.price) console.log(JSON.stringify({ relatedOrder }, null, 2));
