@@ -1,3 +1,4 @@
+import type { RangeArbitrageResult } from '../utils/math/range-arbitrage';
 import type { MarketSide } from './enums';
 
 export interface Market {
@@ -143,6 +144,7 @@ export interface EventRangeArbitrageOpportunity {
     arbitrageBundles: ArbitrageResult[];
     normalizedShares: number;
   };
+  normalizedResult: RangeArbitrageResult;
   hasArbitrage: boolean;
   eventData: PolymarketEvent; // Full event JSON
 }

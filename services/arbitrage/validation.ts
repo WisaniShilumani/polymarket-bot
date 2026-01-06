@@ -1,6 +1,6 @@
 import { differenceInDays } from 'date-fns';
 import type { ArbitrageResult, MarketForOrder, PolymarketMarket } from '../../common/types';
-import { MAX_ORDER_COST, MIN_PROFIT_THRESHOLD, MIN_ROI_THRESHOLD } from '../../config';
+import { DEMO_MODE, MAX_ORDER_COST, MIN_PROFIT_THRESHOLD, MIN_ROI_THRESHOLD } from '../../config';
 import { logger } from '../../utils/logger';
 import { formatCurrency } from '../../utils/accounting';
 
@@ -8,11 +8,12 @@ export const validateOrder = (selectedBundle: ArbitrageResult, marketsWithTokens
   const daysToExpiry = activeMarkets[0]?.endDate ? Math.abs(differenceInDays(new Date(activeMarkets[0].endDate), new Date())) : 7;
   const minimumProfit = MIN_PROFIT_THRESHOLD + Number(((MIN_PROFIT_THRESHOLD / 7) * (daysToExpiry + 1)).toFixed(4));
   if (!selectedBundle || selectedBundle.worstCaseProfit < minimumProfit) {
-    logger.warn(
-      `  ⚠️ [${eventId}] Profit ${formatCurrency(selectedBundle?.worstCaseProfit ?? 0)} is below minimum threshold of ${formatCurrency(
-        minimumProfit,
-      )}, skipping order creation (Best case profit: ${formatCurrency(selectedBundle?.bestCaseProfit ?? 0)})`,
-    );
+    if (DEMO_MODE)
+      logger.warn(
+        `  ⚠️ [${eventId}] Profit ${formatCurrency(selectedBundle?.worstCaseProfit ?? 0)} is below minimum threshold of ${formatCurrency(
+          minimumProfit,
+        )}, skipping order creation (Best case profit: ${formatCurrency(selectedBundle?.bestCaseProfit ?? 0)})`,
+      );
     return false;
   }
 

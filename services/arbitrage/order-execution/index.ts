@@ -38,7 +38,7 @@ export const executeArbitrageOrders = async (
   if (!DEMO_MODE && !validateCollateral(availableCollateral, orderCost, opportunity.eventId)) return defaultResult;
   const { sortedMarketOrders, canFillAll } = await checkBooks(marketsForOrders, useYesStrategy, result.normalizedShares);
   if (!canFillAll) {
-    logger.warn(`\n💰 Not all ${useYesStrategy ? 'YES' : 'NO'} markets can be filled, skipping order execution`);
+    logger.warn(`💰 Not all ${useYesStrategy ? 'YES' : 'NO'} markets can be filled, skipping order execution`);
     return defaultResult;
   }
 

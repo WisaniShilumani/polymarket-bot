@@ -75,8 +75,8 @@ export const displayEventRangeArbitrageResults = (opportunities: EventRangeArbit
 
       logger.log('\n   Arbitrage Bundles:');
       const normalizedShares = opp.result.normalizedShares || 1;
-      if (opp.result.arbitrageBundles && opp.result.arbitrageBundles.length > 0) {
-        opp.result.arbitrageBundles.forEach((bundle: any, idx: number) => {
+      if (opp.normalizedResult.arbitrageBundles && opp.result.arbitrageBundles.length > 0) {
+        opp.normalizedResult.arbitrageBundles.forEach((bundle: any, idx: number) => {
           if (bundle.isArbitrage) {
             logger.info(`\n     Bundle ${idx + 1}:`);
             logger.success(`       ✅ Is Arbitrage: ${bundle.isArbitrage}`);
@@ -122,7 +122,7 @@ export const displayTopOpportunities = (eventOpps: EventRangeArbitrageOpportunit
 
   // Add event range arbitrage
   eventOpps.forEach((opp) => {
-    const bestBundle = opp.result.arbitrageBundles.find((b: any) => b.isArbitrage);
+    const bestBundle = opp.normalizedResult.arbitrageBundles.find((b: any) => b.isArbitrage);
     if (bestBundle) {
       const normalizedShares = opp.result.normalizedShares || 1;
       allOpportunities.push({

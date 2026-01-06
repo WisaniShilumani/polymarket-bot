@@ -33,17 +33,18 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
   const yesBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.Yes);
   const noBundle = result.arbitrageBundles.find((a) => a.side === MarketSide.No);
   const useYesStrategy = !!yesBundle?.isArbitrage;
-  const normalizedShares = useYesStrategy ? yesNormalizedShares : noNormalizedShares;
   const selectedBundle = useYesStrategy ? (yesBundle as ArbitrageResult) : (noBundle as ArbitrageResult);
-  const tags = event.tags?.map((t) => t.slug) || [];
   const marketsForOrders = getMarketsForOrders(activeMarkets, useYesStrategy);
+  const normalizedShares = useYesStrategy ? yesNormalizedShares : noNormalizedShares;
+  const normalizedResult = rangeArbitrage(marketsForAnalysis, normalizedShares);
   if (!validateOrder(selectedBundle, marketsForOrders, activeMarkets, event.id)) return null;
+  const tags = event.tags?.map((t) => t.slug) || [];
   const isObviousExclusiveCase = isObviousMutuallyExclusive(event.title, activeMarkets, tags);
   if (!isObviousExclusiveCase) {
     // check if the markets can be filled before making expensive AI call
     const { canFillAll } = await checkBooks(marketsForOrders, useYesStrategy, normalizedShares);
     if (!canFillAll) {
-      logger.warn(`\n💰 Not all ${useYesStrategy ? 'YES' : 'NO'} markets can be filled, skipping AI check`);
+      logger.warn(`💰 Not all ${useYesStrategy ? 'YES' : 'NO'} markets can be filled, skipping AI check`);
       return null;
     }
   }
@@ -68,6 +69,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
       ...result,
       normalizedShares,
     },
+    normalizedResult,
     hasArbitrage: true,
     eventData: event,
   };
