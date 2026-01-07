@@ -4,9 +4,12 @@ import { DEMO_MODE, MAX_ORDER_COST, MIN_PROFIT_THRESHOLD, MIN_ROI_THRESHOLD } fr
 import { logger } from '../../utils/logger';
 import { formatCurrency } from '../../utils/accounting';
 
+const D = 10; // Days to expiry divisor
 export const validateOrder = (selectedBundle: ArbitrageResult, marketsWithTokens: MarketForOrder[], activeMarkets: PolymarketMarket[], eventId: string) => {
   const daysToExpiry = activeMarkets[0]?.endDate ? Math.abs(differenceInDays(new Date(activeMarkets[0].endDate), new Date())) : 7;
-  const minimumProfit = MIN_PROFIT_THRESHOLD + Number(((MIN_PROFIT_THRESHOLD / 7) * (daysToExpiry + 1)).toFixed(4));
+  const minimumProfitNum = MIN_PROFIT_THRESHOLD + Number((MIN_PROFIT_THRESHOLD / D) * (daysToExpiry + 1));
+  const minimumProfit = parseFloat(minimumProfitNum.toFixed(4));
+
   if (!selectedBundle || selectedBundle.worstCaseProfit < minimumProfit) {
     if (DEMO_MODE)
       logger.warn(

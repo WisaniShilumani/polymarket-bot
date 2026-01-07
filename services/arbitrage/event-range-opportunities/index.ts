@@ -5,7 +5,7 @@ import { rangeArbitrage } from '../../../utils/math/range-arbitrage';
 import { areBetsMutuallyExclusive } from '../../openai';
 import { getEventsFromRest } from '../../polymarket/events';
 import { executeArbitrageOrders } from '../order-execution';
-import { calculateNormalizedShares, isObviousMutuallyExclusive } from './utils';
+import { calculateNormalizedShares, isObviousMutuallyExclusive, sortOpportunities } from './utils';
 import { getTrades } from '../../polymarket/trade-history';
 import { getOpenOrders } from '../../polymarket/orders';
 import { MarketSide } from '../../../common/enums';
@@ -64,6 +64,7 @@ const checkEventForRangeArbitrage = async (event: PolymarketEvent, availableColl
       noPrice: getNoPrice(m),
       spread: m.spread,
       volume: Number(m.volume || 0),
+      endDate: m.endDate,
     })),
     result: {
       ...result,
@@ -94,61 +95,17 @@ export const scanEventsForRangeArbitrage = async (
 
   let hasMoreEvents = true;
   let ordersPlaced = false;
+  const [trades, openOrders] = await Promise.all([getTrades(), getOpenOrders()]);
+  const allEvents: PolymarketEvent[] = [];
   while (hasMoreEvents) {
     try {
       logger.progress(`Scanning events ${offset} to ${offset + limit}...`);
-      const [events, trades, openOrders] = await Promise.all([getEventsFromRest({ offset, limit, closed: false }), getTrades(), getOpenOrders()]);
-      const tradeMarketIds = trades.map((t) => t.market);
-      const openOrderMarketIds = openOrders.map((o) => o.market);
-      const totalOpenOrderValue = openOrders.reduce((sum, o) => sum + parseFloat(o.price) * parseFloat(o.original_size), 0);
-      const openOrderMarketIdsSet = new Set(openOrderMarketIds);
-      const tradeMarketIdsSet = new Set(tradeMarketIds);
+      const events = await getEventsFromRest({ offset, limit, closed: false });
+      allEvents.push(...events);
       if (events.length === 0) {
         logger.info('No more events to scan.');
         hasMoreEvents = false;
         break;
-      }
-
-      let foundInBatch = 0;
-      const opportunities: (EventRangeArbitrageOpportunity | null)[] = [];
-      const BATCH_SIZE = 5;
-      const batches: PolymarketEvent[][] = [];
-      for (let i = 0; i < events.length; i += BATCH_SIZE) {
-        batches.push(events.slice(i, i + BATCH_SIZE));
-      }
-
-      for (const batch of batches) {
-        const batchResults = await Promise.all(
-          batch.map(async (event) => {
-            const hasOpenOrder = event.markets.some((m) => openOrderMarketIdsSet.has(m.conditionId));
-            if (hasOpenOrder) return null;
-            if (tradeMarketIdsSet.has(event.id)) logger.warn('Checking existing trade...');
-            // Might be dangerous but who cares
-            // const hasTrade = event.markets.some((m) => existingMarketIds.has(m.conditionId));
-            // if (hasTrade) {
-            //   logger.warn(`\n💰 Event ${event.title} has trade, skipping`);
-            //   return null;
-            // }
-            return checkEventForRangeArbitrage(event, availableCollateral);
-          }),
-        );
-        opportunities.push(...batchResults);
-      }
-
-      // BUG: Despite finding a NO arbitrage, we use the opportunity to buy YES regardless.
-      const sortedOpportunities = opportunities
-        .filter((o) => !!o)
-        .sort((a, b) => (b?.result.arbitrageBundles[0]?.worstCaseProfit ?? 0) - (a?.result.arbitrageBundles[0]?.worstCaseProfit ?? 0));
-
-      for (const opportunity of sortedOpportunities) {
-        if (!opportunity) continue;
-
-        foundInBatch++;
-        const { ordersPlaced: placed, opportunity: resultantOpportunity } = await executeArbitrageOrders(opportunity, totalOpenOrderValue);
-        if (placed) {
-          ordersPlaced = true;
-          allOpportunities.push(resultantOpportunity);
-        }
       }
 
       offset += limit;
@@ -157,6 +114,45 @@ export const scanEventsForRangeArbitrage = async (
       throw error;
     }
   }
+
+  // START OF BATCH PROCESSING
+  const tradeMarketIds = trades.map((t) => t.market);
+  const openOrderMarketIds = openOrders.map((o) => o.market);
+  const totalOpenOrderValue = openOrders.reduce((sum, o) => sum + parseFloat(o.price) * parseFloat(o.original_size), 0);
+  const openOrderMarketIdsSet = new Set(openOrderMarketIds);
+  const tradeMarketIdsSet = new Set(tradeMarketIds);
+  let foundInBatch = 0;
+  const opportunities: (EventRangeArbitrageOpportunity | null)[] = [];
+  const BATCH_SIZE = 5;
+  const batches: PolymarketEvent[][] = [];
+  for (let i = 0; i < allEvents.length; i += BATCH_SIZE) {
+    batches.push(allEvents.slice(i, i + BATCH_SIZE));
+  }
+
+  for (const batch of batches) {
+    const batchResults = await Promise.all(
+      batch.map(async (event) => {
+        const hasOpenOrder = event.markets.some((m) => openOrderMarketIdsSet.has(m.conditionId));
+        if (hasOpenOrder) return null;
+        if (tradeMarketIdsSet.has(event.id)) logger.warn('Checking existing trade...');
+        return checkEventForRangeArbitrage(event, availableCollateral);
+      }),
+    );
+    opportunities.push(...batchResults);
+  }
+
+  // BUG: Despite finding a NO arbitrage, we use the opportunity to buy YES regardless.
+  const sortedOpportunities = sortOpportunities(opportunities.filter((o) => !!o) as EventRangeArbitrageOpportunity[]);
+  for (const opportunity of sortedOpportunities) {
+    if (!opportunity) continue;
+    foundInBatch++;
+    const { ordersPlaced: placed, opportunity: resultantOpportunity } = await executeArbitrageOrders(opportunity, totalOpenOrderValue);
+    if (placed) {
+      ordersPlaced = true;
+      allOpportunities.push(resultantOpportunity);
+    }
+  }
+  // END OF BATCH PROCESSING
 
   if (ordersPlaced) {
     logger.success(`\n✅ Orders placed successfully!`);

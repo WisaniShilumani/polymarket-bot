@@ -3,7 +3,7 @@ import type { GetEventsOptions, GetMarketsOptions } from '../../common/types';
 import { POLYMARKET_API_URL } from '../../config';
 
 export const buildEventsUrl = (options: GetEventsOptions = {}) => {
-  const today = addMinutes(new Date(), 5).toISOString();
+  const minEndDate = addMinutes(new Date(), 30).toISOString();
   const startDate = subMonths(new Date(), 12).toISOString();
   const maxEndDate = addDays(new Date(), 3).toISOString();
   // const maxEndDate = addMinutes(new Date(), 90).toISOString();
@@ -12,7 +12,7 @@ export const buildEventsUrl = (options: GetEventsOptions = {}) => {
     limit: limit.toString(),
     offset: offset.toString(),
     closed: closed.toString(),
-    end_date_min: today,
+    end_date_min: minEndDate,
     end_date_max: maxEndDate,
     start_date_min: startDate,
     ascending: 'false',

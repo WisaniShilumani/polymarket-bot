@@ -1,4 +1,6 @@
+import { differenceInHours } from 'date-fns';
 import type { Market, PolymarketMarket } from '../../../common/types';
+import type { EventRangeArbitrageOpportunity } from '../../../common/types';
 
 /**
  * Calculates the minimum shares needed so each order meets the minimum
@@ -40,4 +42,26 @@ export const isObviousMutuallyExclusive = (eventTitle: string, markets: Polymark
   }
 
   return false;
+};
+
+interface IOpportunityWithScore extends EventRangeArbitrageOpportunity {
+  score: number;
+  hoursToExpiry: number;
+}
+
+const hoursToExpiryWeight = 0.15;
+export const sortOpportunities = (opportunities: EventRangeArbitrageOpportunity[]) => {
+  if (!opportunities.length) return [];
+  const opportunitiesWithScore: IOpportunityWithScore[] = opportunities.map((o) => {
+    const endDate = o.markets.find((m) => m.endDate)?.endDate;
+    const hoursToExpiry = endDate ? Math.abs(differenceInHours(new Date(endDate), new Date())) : 7;
+    return {
+      ...o,
+      score: ((o.result.arbitrageBundles[0]?.worstCaseProfit ?? 0) * 1) / Math.pow(hoursToExpiry + 1, hoursToExpiryWeight),
+      hoursToExpiry,
+    };
+  });
+
+  opportunitiesWithScore.sort((a, b) => b.score - a.score);
+  return opportunitiesWithScore;
 };

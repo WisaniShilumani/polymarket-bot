@@ -9,6 +9,7 @@ export interface Market {
   spread: number;
   slug?: string;
   volume: number;
+  endDate: string;
 }
 
 export interface Position {

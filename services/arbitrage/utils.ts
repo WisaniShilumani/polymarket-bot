@@ -25,6 +25,7 @@ export const getMarketsForAnalysis = (activeMarkets: PolymarketMarket[]): Market
       noPrice: getNoPrice(m), // since no price is available for NO
       spread: m.spread,
       volume: Number(m.volume || 0),
+      endDate: m.endDate,
     }));
 
   return marketsForAnalysis;
