@@ -31,7 +31,6 @@ export const fulfillOutstandingOrders = async () => {
     if (relatedOrder) {
       const hoursSinceCreation = Math.abs(differenceInHours(new Date(), new Date(relatedOrder.created_at * 1000)));
       if (hoursSinceCreation < MAX_HOURS_FOR_STALE_ORDER) continue;
-      // console.log(JSON.stringify({ relatedOrder, position: positions[0] }, null, 2)); ADD CREATED AT
       logger.warn(`Found related order for ${event.title} with ${relatedOrder.price} price and ${positions.length} existing positions.`);
       if (!relatedOrder.price) console.log(JSON.stringify({ relatedOrder }, null, 2));
       const newOrder: OrderParams = {
