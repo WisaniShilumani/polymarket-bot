@@ -8,9 +8,12 @@ import { getOrderBookDepth } from '../polymarket/book-depth';
 import type { OrderParams } from '../polymarket/orders/types';
 import { differenceInHours } from 'date-fns';
 
+// Worst case - not all positions have matched their full size; and we order the full size of the outstanding order
+// We'll allow this, since we would still be profitable
+
+const MAX_HOURS_FOR_STALE_ORDER = 8;
 export const fulfillOutstandingOrders = async () => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
-  // TODO - CHECK POSITIONS WITH OUTSTANDING ORDERS, AND REPLACE THE ORDER WITH +0.1 IF THERE'S A SPREAD ISSUE
   logger.log(`Found ${positions.length} positions and ${orders.length} open orders`);
   const positionsByEventIdMap: Record<string, UserPosition[]> = {};
   positions.forEach((position) => {
@@ -27,7 +30,7 @@ export const fulfillOutstandingOrders = async () => {
     const relatedOrder = orders.find((o) => event.markets.some((m) => m.conditionId === o.market && o.side === Side.BUY)) as unknown as OpenOrder;
     if (relatedOrder) {
       const hoursSinceCreation = Math.abs(differenceInHours(new Date(), new Date(relatedOrder.created_at * 1000)));
-      if (hoursSinceCreation < 8) continue;
+      if (hoursSinceCreation < MAX_HOURS_FOR_STALE_ORDER) continue;
       // console.log(JSON.stringify({ relatedOrder, position: positions[0] }, null, 2)); ADD CREATED AT
       logger.warn(`Found related order for ${event.title} with ${relatedOrder.price} price and ${positions.length} existing positions.`);
       if (!relatedOrder.price) console.log(JSON.stringify({ relatedOrder }, null, 2));

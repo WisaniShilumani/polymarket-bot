@@ -8,12 +8,13 @@ import { getOrderBookDepth } from '../polymarket/book-depth';
 import { getEvent } from '../polymarket/events';
 import { DEMO_MODE } from '../../config';
 
+// This will sell all positions with a profit > minProfit, and ALL the outstanding orders
+
 const minProfit = 0.02;
 const EXCLUSION_LIST = [114242]; // IRAN BET
 const isMonitorMode = !!DEMO_MODE;
 export const sellGoodEventPositions = async () => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
-  // TODO - CHECK POSITIONS WITH OUTSTANDING ORDERS, AND REPLACE THE ORDER WITH +0.1 IF THERE'S A SPREAD ISSUE
   logger.log(`Found ${positions.length} positions and ${orders.length} open orders`);
   const positionsByEventIdMap = new Map<string, UserPosition[]>();
   positions.forEach((position) => {
