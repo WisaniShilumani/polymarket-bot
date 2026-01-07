@@ -8,13 +8,14 @@ import { getOrderBookDepth } from '../polymarket/book-depth';
 import type { OrderParams } from '../polymarket/orders/types';
 import { differenceInHours } from 'date-fns';
 
+// PURPOSE: To fulfill outstanding orders by creating new orders at price + 0.01
+// =============================================================================
 // Worst case - not all positions have matched their full size; and we order the full size of the outstanding order
 // We'll allow this, since we would still be profitable
 
 const MAX_HOURS_FOR_STALE_ORDER = 8;
 export const fulfillOutstandingOrders = async () => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
-  logger.log(`Found ${positions.length} positions and ${orders.length} open orders`);
   const positionsByEventIdMap: Record<string, UserPosition[]> = {};
   positions.forEach((position) => {
     positionsByEventIdMap[position.eventId] = [...(positionsByEventIdMap[position.eventId] || []), position];
@@ -31,7 +32,6 @@ export const fulfillOutstandingOrders = async () => {
     if (relatedOrder) {
       const hoursSinceCreation = Math.abs(differenceInHours(new Date(), new Date(relatedOrder.created_at * 1000)));
       if (hoursSinceCreation < MAX_HOURS_FOR_STALE_ORDER) continue;
-      logger.warn(`Found related order for ${event.title} with ${relatedOrder.price} price and ${positions.length} existing positions.`);
       if (!relatedOrder.price) console.log(JSON.stringify({ relatedOrder }, null, 2));
       const newOrder: OrderParams = {
         tokenId: relatedOrder.asset_id,
@@ -42,7 +42,6 @@ export const fulfillOutstandingOrders = async () => {
 
       const { canFill } = await getOrderBookDepth(newOrder.tokenId, Side.SELL, newOrder.size, newOrder.price, 0, false);
       if (!canFill) {
-        logger.warn(`❌ Not enough order book depth to fill the order for ${event.title}`);
         continue;
       }
 

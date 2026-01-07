@@ -1,3 +1,4 @@
+import { DEMO_MODE } from '../../config';
 import { getEvent } from '../polymarket/events';
 import { getMarketByAssetId } from '../polymarket/markets';
 import { cancelOrder, getOpenOrders } from '../polymarket/orders';
@@ -30,11 +31,12 @@ export const cancelStaleIndividualOrders = async () => {
     const hoursSinceCreation = Math.abs(differenceInHours(new Date(), new Date(order.created_at * 1000)));
     const sizeMatched = Number(order.size_matched);
     const title = event?.title || (await getMarketTitle(order.market));
-    console.log(
-      `[${
-        isInvestedInEvent ? '✅ INVESTED' : '❌ INVESTED'
-      }] ${title} - Order has been opened for ${hoursSinceCreation} hours and has ${sizeMatched} shares matched`,
-    );
+    if (DEMO_MODE)
+      console.log(
+        `[${
+          isInvestedInEvent ? '✅ INVESTED' : '❌ INVESTED'
+        }] ${title} - Order has been opened for ${hoursSinceCreation} hours and has ${sizeMatched} shares matched`,
+      );
     if (!isInvestedInEvent) {
       await cancelOrder(order.id);
       console.log(`Cancelled order ${order.id} for ${title}`);

@@ -8,6 +8,8 @@ import { getOrderBookDepth } from '../polymarket/book-depth';
 import { getEvent } from '../polymarket/events';
 import { DEMO_MODE } from '../../config';
 
+// PURPOSE: To sell positions that have a profit > minProfit
+// =========================================================
 // This will sell all positions with a profit > minProfit, and ALL the outstanding orders
 
 const minProfit = 0.02;
@@ -48,7 +50,6 @@ export const sellGoodEventPositions = async () => {
     const depthResults = await Promise.all(depthCheckPromises);
     const canFillAll = depthResults.every((r) => r.depthCheck.canFill);
     if (!canFillAll) {
-      logger.warn(`❌ Not all ${marketOrders.length} orders can be filled for event ${event.eventId}.`);
       continue;
     }
 
