@@ -4,6 +4,8 @@ import { cancelOrder, getOpenOrders } from '../polymarket/orders';
 import { getUserPositions } from '../polymarket/positions';
 import { differenceInHours } from 'date-fns';
 
+// PURPOSE: To make space for new orders by cancelling stale orders
+// ================================================================
 // Worst case, this will cancel all outstanding orders for an event; we need to cater for events that end very soon (e.g. a soccer match ending in 30 mins)
 // Currently we filter for stale orders, but we should filter for near-expiry orders as well
 // To do this, we'll need to change the logic to scan all orders, get event expiry or market expiry (promise).
