@@ -29,10 +29,11 @@ export const fulfillOutstandingOrders = async () => {
     if (positions.length === 3 && positions.every((p) => p.size === firstPositionSize && p.size > 4)) continue;
     const event = await getEvent(eventId);
     const firstMarketEndDate = event.markets.find((m) => m.endDate)?.endDate || addMinutes(new Date(), 120).toISOString();
-    const minutesToExpiry = Math.abs(differenceInMinutes(new Date(event.endDate || firstMarketEndDate), new Date()));
+    const minutesToExpiry = Math.abs(differenceInMinutes(addMinutes(new Date(event.startTime || firstMarketEndDate), 90), new Date()));
     const totalMarkets = event.markets.length;
     const relatedOrder = orders.find((o) => event.markets.some((m) => m.conditionId === o.market && o.side === Side.BUY)) as unknown as OpenOrder;
-    if (positions.length < totalMarkets && minutesToExpiry < 80) {
+    const totalPnl = positions.reduce((acc, p) => acc + p.percentPnl, 0);
+    if (positions.length < totalMarkets && minutesToExpiry < 80 && totalPnl > -30) {
       const sellOrders = positions.map((p) => ({
         tokenId: p.asset,
         price: p.curPrice,

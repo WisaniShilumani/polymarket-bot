@@ -88,6 +88,7 @@ export interface PolymarketEvent {
   description?: string;
   category: string;
   startDate?: string;
+  startTime?: string;
   endDate?: string;
   creationDate?: string;
   closedTime?: string;
