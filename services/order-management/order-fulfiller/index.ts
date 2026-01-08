@@ -1,12 +1,12 @@
-import { cancelOrder, createOrder, getOpenOrders } from '../polymarket/orders';
-import type { UserPosition } from '../../common/types';
-import { getUserPositions } from '../polymarket/positions';
-import logger from '../../utils/logger';
+import { cancelOrder, createOrder, getOpenOrders } from '../../polymarket/orders';
+import type { UserPosition } from '../../../common/types';
+import { getUserPositions } from '../../polymarket/positions';
+import logger from '../../../utils/logger';
 import { Side, type OpenOrder } from '@polymarket/clob-client';
-import { getEvent } from '../polymarket/events';
-import { getOrderBookDepth } from '../polymarket/book-depth';
-import type { OrderParams } from '../polymarket/orders/types';
-import { differenceInHours } from 'date-fns';
+import { getEvent } from '../../polymarket/events';
+import { getOrderBookDepth } from '../../polymarket/book-depth';
+import type { OrderParams } from '../../polymarket/orders/types';
+import { addHours, addMinutes, differenceInHours, differenceInMinutes } from 'date-fns';
 
 // PURPOSE: To fulfill outstanding orders by creating new orders at price + 0.01
 // =============================================================================
@@ -25,10 +25,30 @@ export const fulfillOutstandingOrders = async () => {
   for (const eventId of eventIds) {
     const positions = positionsByEventIdMap[eventId];
     if (!positions) continue;
-    if (positions.length !== 2) continue;
+    const firstPositionSize = positions[0]?.size;
+    if (positions.length === 3 && positions.every((p) => p.size === firstPositionSize && p.size > 4)) continue;
     const event = await getEvent(eventId);
-    if (!event) continue;
+    const firstMarketEndDate = event.markets.find((m) => m.endDate)?.endDate || addMinutes(new Date(), 120).toISOString();
+    const minutesToExpiry = Math.abs(differenceInMinutes(new Date(event.endDate || firstMarketEndDate), new Date()));
+    const totalMarkets = event.markets.length;
     const relatedOrder = orders.find((o) => event.markets.some((m) => m.conditionId === o.market && o.side === Side.BUY)) as unknown as OpenOrder;
+    if (positions.length < totalMarkets && minutesToExpiry < 80) {
+      const sellOrders = positions.map((p) => ({
+        tokenId: p.asset,
+        price: p.curPrice,
+        size: p.size,
+        side: Side.SELL,
+      }));
+      await Promise.all(sellOrders.map((o) => createOrder(o)));
+      if (relatedOrder) {
+        await cancelOrder(relatedOrder.id);
+      }
+
+      continue;
+    }
+
+    if (positions.length !== 2) continue;
+    if (!event) continue;
     if (relatedOrder) {
       const hoursSinceCreation = Math.abs(differenceInHours(new Date(), new Date(relatedOrder.created_at * 1000)));
       if (hoursSinceCreation < MAX_HOURS_FOR_STALE_ORDER) continue;

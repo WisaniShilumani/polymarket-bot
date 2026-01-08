@@ -6,9 +6,9 @@ import { getAccountCollateralBalance } from './services/polymarket/account-balan
 import { getOpenOrders } from './services/polymarket/orders';
 import { loadCacheFromFile } from './services/openai';
 import { DEMO_MODE } from './config';
-import { sellGoodEventPositions } from './services/positions-seller';
-import { fulfillOutstandingOrders } from './services/order-fulfiller';
-import { cancelStaleIndividualOrders } from './services/order-canceller';
+import { sellGoodEventPositions } from './services/order-management/positions-seller';
+import { fulfillOutstandingOrders } from './services/order-management/order-fulfiller';
+import { cancelStaleIndividualOrders } from './services/order-management/order-canceller';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot...');
 
