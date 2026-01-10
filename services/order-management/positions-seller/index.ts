@@ -28,7 +28,6 @@ export const sellGoodEventPositions = async () => {
     const positions = positionsByEventIdMap.get(eventId);
     if (!positions) return null;
     const profit = positions.reduce((acc, position) => acc + position.curPrice - position.avgPrice, 0);
-    if (profit > minProfit) logger.log(`Event ${eventId} (${positions[0]?.title}) profit: ${formatCurrency(profit)}`);
     return { eventId, profit, positions };
   });
 

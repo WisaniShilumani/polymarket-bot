@@ -1,7 +1,7 @@
 import type { GetEventsOptions, PolymarketEvent } from '../../../common/types';
 import logger from '../../../utils/logger';
 import { http } from '../../../utils/http';
-import { buildEventsUrl } from '../utils';
+import { buildCryptoEventsUrl, buildEventsUrl } from '../utils';
 
 /**
  * Fetches events from Polymarket REST API
@@ -10,6 +10,17 @@ import { buildEventsUrl } from '../utils';
  */
 export const getEventsFromRest = async (options: GetEventsOptions = {}): Promise<PolymarketEvent[]> => {
   const url = buildEventsUrl(options);
+  try {
+    const events = await http.get(url).json<PolymarketEvent[]>();
+    return events;
+  } catch (error) {
+    logger.error('Error fetching events from Polymarket API:', error);
+    throw error;
+  }
+};
+
+export const getCryptoEvents = async (options: GetEventsOptions = {}): Promise<PolymarketEvent[]> => {
+  const url = buildCryptoEventsUrl(options);
   try {
     const events = await http.get(url).json<PolymarketEvent[]>();
     return events;
@@ -28,4 +39,29 @@ export const getEvent = async (eventId: string): Promise<PolymarketEvent> => {
     logger.error('Error fetching event from Polymarket API:', error);
     throw error;
   }
+};
+
+export const getAllCryptoEvents = async (): Promise<PolymarketEvent[]> => {
+  const allEvents: PolymarketEvent[] = [];
+  let offset = 0;
+  const limit = 500;
+  let hasMoreEvents = true;
+  while (hasMoreEvents) {
+    try {
+      logger.progress(`Scanning events ${offset} to ${offset + limit}...`);
+      const events = await getCryptoEvents({ offset, limit, closed: false });
+      allEvents.push(...events);
+      if (events.length === 0) {
+        logger.info('No more events to scan.');
+        hasMoreEvents = false;
+        break;
+      }
+
+      offset += limit;
+    } catch (error) {
+      logger.error('Error scanning events:', error);
+      throw error;
+    }
+  }
+  return allEvents;
 };

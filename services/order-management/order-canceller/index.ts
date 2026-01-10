@@ -28,6 +28,8 @@ export const cancelStaleIndividualOrders = async () => {
   for (const order of staleOrders) {
     const isInvestedInEvent = allMarketConditionIds.includes(order.market);
     const event = events.find((event) => event.markets.some((market) => market.conditionId === order.market));
+    const isCryptoEvent = event?.tags?.some((t) => t.slug === 'crypto');
+    if (isCryptoEvent) continue;
     const hoursSinceCreation = Math.abs(differenceInHours(new Date(), new Date(order.created_at * 1000)));
     const sizeMatched = Number(order.size_matched);
     const title = event?.title || (await getMarketTitle(order.market));

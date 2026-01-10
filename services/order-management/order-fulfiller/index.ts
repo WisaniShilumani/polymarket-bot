@@ -28,6 +28,8 @@ export const fulfillOutstandingOrders = async () => {
     const firstPositionSize = positions[0]?.size;
     if (positions.length === 3 && positions.every((p) => p.size === firstPositionSize && p.size > 4)) continue;
     const event = await getEvent(eventId);
+    const isCryptoEvent = event.tags?.some((t) => t.slug === 'crypto');
+    if (isCryptoEvent) continue;
     const firstMarketEndDate = event.markets.find((m) => m.endDate)?.endDate || addMinutes(new Date(), 120).toISOString();
     const minutesToExpiry = Math.abs(differenceInMinutes(addMinutes(new Date(event.startTime || firstMarketEndDate), 90), new Date()));
     const totalMarkets = event.markets.length;

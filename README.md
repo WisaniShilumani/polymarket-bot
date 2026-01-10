@@ -14,3 +14,15 @@
 10. To execute, we first confirm our account balance and the order books again (since more than 1s has elapsed)
 11. We then place the orders, sorted to place the most difficult order first
 12. If one of the orders fail, we cancel all of them
+
+### Strategy 2
+
+I've come to the realisation that I'm seeking a 2% discount per match to make a discount. The issue with this, is that I have to fill
+3 orders, and wait for matches to happen to realise that gain. I have also experienced losses in times where I wasn't able to fulfill all 3 orders.
+
+This strategy is ultimately not so different from buying a volatile asset at X price, and selling it at 1.02X; except that it comes with a guarantee that
+the price will go up, granted all 3 orders are filled.
+
+The best outcome I can have here is if I have an API that's ahead of Polymarket's predictions; and I can use that to fill orders, and sell when the price is up.
+
+The second best outcome is to use price momentum to know when to buy at a certain price, and then sell it at the increased price.

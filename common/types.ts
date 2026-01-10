@@ -47,7 +47,8 @@ export interface PolymarketMarket {
   bestAsk: string;
   lastTradePrice: string;
   volume: string;
-  volume24hr: string;
+  volumeNum: number;
+  volume24hr: number;
   volume1wk: string;
   volume1mo: string;
   volume1yr: string;

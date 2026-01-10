@@ -2,7 +2,7 @@ import { MarketSide } from '../../common/enums';
 import type { PolymarketMarket } from '../../common/types';
 import { HOPEFUL_DISCOUNT } from '../../config';
 
-const getOutcomePrice = (market: PolymarketMarket, side: MarketSide) => {
+export const getOutcomePrice = (market: PolymarketMarket, side: MarketSide) => {
   try {
     const outcomePrices = JSON.parse(market.outcomePrices);
     return Math.max(parseFloat(outcomePrices[side === MarketSide.Yes ? 0 : 1]) - HOPEFUL_DISCOUNT, 0);
