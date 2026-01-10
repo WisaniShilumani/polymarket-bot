@@ -1,7 +1,6 @@
 import { cancelOrder, createOrder, getOpenOrders } from '../../polymarket/orders';
 import type { UserPosition } from '../../../common/types';
 import { getUserPositions } from '../../polymarket/positions';
-import { formatCurrency } from '../../../utils/accounting';
 import logger from '../../../utils/logger';
 import { Side, type OpenOrder } from '@polymarket/clob-client';
 import { getOrderBookDepth } from '../../polymarket/book-depth';

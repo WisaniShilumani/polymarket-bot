@@ -1,4 +1,4 @@
-import { createOrder } from '../../polymarket/orders';
+import { createOrder, getOpenOrders } from '../../polymarket/orders';
 import type { UserPosition } from '../../../common/types';
 import { getUserPositions } from '../../polymarket/positions';
 import logger from '../../../utils/logger';
@@ -6,8 +6,10 @@ import { Side } from '@polymarket/clob-client';
 import { getEvent } from '../../polymarket/events';
 
 export const sellCryptoPositions = async () => {
-  const positions = await getUserPositions();
-  logger.log(`Found ${positions.length} positions`);
+  const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
+  const openOrderMarketIds = new Set(orders.filter((o) => o.outcome === 'Yes' && o.side === Side.SELL).map((o) => o.market));
+
+  logger.log(`Found ${positions.length} positions and ${orders.length} open orders`);
   const positionsByEventIdMap = new Map<string, UserPosition[]>();
   positions.forEach((position) => {
     positionsByEventIdMap.set(position.eventId, [...(positionsByEventIdMap.get(position.eventId) || []), position]);
@@ -22,12 +24,14 @@ export const sellCryptoPositions = async () => {
 
   for (const event of eventsPositionsToSell) {
     if (!event?.positions) return;
-    const marketOrders = event.positions.map((position) => ({
-      tokenId: position.asset,
-      price: position.curPrice + 0.02,
-      size: position.size,
-      side: 1,
-    }));
+    const marketOrders = event.positions
+      .filter((p) => !openOrderMarketIds.has(p.conditionId))
+      .map((position) => ({
+        tokenId: position.asset,
+        price: position.curPrice + 0.02,
+        size: position.size,
+        side: 1,
+      }));
 
     const eventData = await getEvent(event.eventId);
     const isCryptoEvent = eventData.tags?.some((t) => t.slug === 'crypto-prices');
