@@ -14,7 +14,7 @@ import { addHours, addMinutes, differenceInHours, differenceInMinutes } from 'da
 // We'll allow this, since we would still be profitable
 
 const MAX_HOURS_FOR_STALE_ORDER = 8;
-export const fulfillOutstandingOrders = async () => {
+export const fulfillOutstandingOrders = async (collateralBalance: number) => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
   const positionsByEventIdMap: Record<string, UserPosition[]> = {};
   positions.forEach((position) => {
@@ -44,6 +44,7 @@ export const fulfillOutstandingOrders = async () => {
       }));
       await Promise.all(sellOrders.map((o) => createOrder(o)));
       if (relatedOrder) {
+        if (collateralBalance < Number(relatedOrder.price + 0.01) * (Number(relatedOrder.original_size) - Number(relatedOrder.size_matched))) continue;
         await cancelOrder(relatedOrder.id);
       }
 

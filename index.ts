@@ -25,10 +25,10 @@ async function main() {
 
   let ordersPlaced = false; // Will run indefinitely
   while (!ordersPlaced) {
-    await fulfillOutstandingOrders();
+    const [openOrders, collateralBalance] = await Promise.all([getOpenOrders(), getAccountCollateralBalance()]);
+    await fulfillOutstandingOrders(collateralBalance);
     await sellGoodEventPositions();
     await Promise.all([buyCryptoEvents(), sellCryptoPositions(), cancelStaleIndividualOrders()]);
-    const [openOrders, collateralBalance] = await Promise.all([getOpenOrders(), getAccountCollateralBalance()]);
     const totalOpenOrderValue = openOrders.reduce((sum, o) => sum + parseFloat(o.price) * parseFloat(o.original_size), 0);
     const availableCollateral = collateralBalance - totalOpenOrderValue;
     if (availableCollateral <= 2 && !DEMO_MODE) {
