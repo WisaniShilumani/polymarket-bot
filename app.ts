@@ -4,12 +4,13 @@ import { scanMarketsForSimpleArbitrage } from './services/arbitrage/market-simpl
 import { displayMarketSimpleArbitrageResults } from './services/arbitrage/logger';
 import { getAccountCollateralBalance } from './services/polymarket/account-balance';
 import { sellCryptoPositions } from './services/crypto-trader/seller';
+import { getUpcomingPositions } from './services/order-management/upcoming-positions';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot');
 
 async function main() {
   if (Number(1) === 1) {
-    await sellCryptoPositions();
+    await getUpcomingPositions();
     return;
   }
   let opportunitiesFound = false;

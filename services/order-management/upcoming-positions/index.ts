@@ -21,7 +21,7 @@ export const getUpcomingPositions = async () => {
     const firstMarketEndDate = event.markets.find((m) => m.endDate)?.endDate || addMinutes(new Date(), 120).toISOString();
     const minutesToExpiry = Math.abs(differenceInMinutes(new Date(event.startTime || firstMarketEndDate), new Date()));
     const relatedOrders = orders.filter((o) => event.markets.some((m) => m.conditionId === o.market && o.side === Side.BUY)) as unknown as OpenOrder[];
-    if (minutesToExpiry < 5 * 60) {
+    if (minutesToExpiry < 5 * 60 && positions.length < event.markets.length) {
       logger.info(`\nEvent ${event.title} is upcoming in ${minutesToExpiry} minutes.`);
       logger.progress(`You currently have ${positions.length}/${event.markets.length} positions in this event and ${relatedOrders.length} related orders`);
     }
