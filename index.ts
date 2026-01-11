@@ -36,12 +36,15 @@ async function main() {
       await new Promise((resolve) => setTimeout(resolve, 10000));
       continue;
     }
-    const result = await findAndAnalyzeArbitrage(availableCollateral);
-    if (!result) {
-      logger.warn('⏳ No orders placed. Scanning again...\n');
-    } else {
-      logger.success('✅ Orders placed! Looking for more...\n');
-    }
+
+    // Temporarily disabled sports orders since it's hard to deal with the 3 market order fulfillment.
+    // ================================================================
+    // const result = await findAndAnalyzeArbitrage(availableCollateral);
+    // if (!result) {
+    //   logger.warn('⏳ No orders placed. Scanning again...\n');
+    // } else {
+    //   logger.success('✅ Orders placed! Looking for more...\n');
+    // }
   }
   // await findSentimentalArbitrage();
 }
