@@ -1,3 +1,4 @@
+import { Side } from '@polymarket/clob-client';
 import type { UserPosition } from '../../../common/types';
 import { DEMO_MODE } from '../../../config';
 import { getEvent } from '../../polymarket/events';
@@ -36,9 +37,15 @@ export const cancelStaleIndividualOrders = async () => {
     if (!event) continue;
     const positions = positionsByEventIdMap[event.id];
     if (positions?.length) continue;
-    const isCryptoEvent = event?.tags?.some((t) => t.slug === 'crypto');
-    if (isCryptoEvent) continue;
     const hoursSinceCreation = Math.abs(differenceInHours(new Date(), new Date(order.created_at * 1000)));
+    const isCryptoEvent = event?.tags?.some((t) => t.slug === 'crypto');
+    if (isCryptoEvent) {
+      if (hoursSinceCreation > 12 && order.side === Side.BUY) {
+        await cancelOrder(order.id);
+        console.log(`Cancelled BUY crypto order ${order.id} for ${event.title}`);
+      }
+      continue;
+    }
     const sizeMatched = Number(order.size_matched);
     const title = event?.title || (await getMarketTitle(order.market));
     if (DEMO_MODE)
