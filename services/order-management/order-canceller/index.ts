@@ -40,7 +40,7 @@ export const cancelStaleIndividualOrders = async () => {
     const hoursSinceCreation = Math.abs(differenceInHours(new Date(), new Date(order.created_at * 1000)));
     const isCryptoEvent = event?.tags?.some((t) => t.slug === 'crypto');
     if (isCryptoEvent) {
-      if (hoursSinceCreation > 12 && order.side === Side.BUY) {
+      if (hoursSinceCreation > 6 && order.side === Side.BUY) {
         await cancelOrder(order.id);
         console.log(`Cancelled BUY crypto order ${order.id} for ${event.title}`);
       }
