@@ -9,8 +9,8 @@ import { DEMO_MODE } from './config';
 import { sellGoodEventPositions } from './services/order-management/positions-seller';
 import { fulfillOutstandingOrders } from './services/order-management/order-fulfiller';
 import { cancelStaleIndividualOrders } from './services/order-management/order-canceller';
-import { buyCryptoEvents } from './services/crypto-trader/buyer';
-import { sellCryptoPositions } from './services/crypto-trader/seller';
+import { buyCryptoEvents } from './services/trader/crypto/buyer';
+import { sellCryptoPositions } from './services/trader/crypto/seller';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot...');
 

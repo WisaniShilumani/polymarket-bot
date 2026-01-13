@@ -4,14 +4,17 @@ import { scanMarketsForSimpleArbitrage } from './services/arbitrage/market-simpl
 import { displayMarketSimpleArbitrageResults } from './services/arbitrage/logger';
 import { getAccountCollateralBalance } from './services/polymarket/account-balance';
 import { getUpcomingPositions } from './services/order-management/upcoming-positions';
-import { buyCryptoEvents } from './services/crypto-trader/buyer';
+import { buyCryptoEvents } from './services/trader/crypto/buyer';
+import { buyIndicesEvents } from './services/trader/indices/buyer';
+import { sellIndicesEvents } from './services/trader/indices/seller';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot');
 
 async function main() {
   if (Number(1) === 1) {
     await getUpcomingPositions();
-    await buyCryptoEvents();
+    // await buyCryptoEvents();
+    // await buyIndicesEvents();
     return;
   }
   let opportunitiesFound = false;

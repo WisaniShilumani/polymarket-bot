@@ -45,6 +45,27 @@ export const buildCryptoEventsUrl = (options: GetEventsOptions = {}) => {
   return url;
 };
 
+export const buildIndicesEventsUrl = (options: GetEventsOptions = {}) => {
+  const minEndDate = addDays(new Date(), 5).toISOString();
+  const maxEndDate = addDays(new Date(), 90).toISOString();
+  const startDate = subMonths(new Date(), 12).toISOString();
+  const { limit = 500, offset = 0, closed = false } = options;
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+    offset: offset.toString(),
+    closed: closed.toString(),
+    end_date_min: minEndDate,
+    end_date_max: maxEndDate,
+    start_date_min: startDate,
+    ascending: 'false',
+    order: 'volume',
+    tag_slug: 'indicies',
+  });
+
+  const url = `${POLYMARKET_API_URL}/events?${params.toString()}`;
+  return url;
+};
+
 export const buildMarketsUrl = (options: GetMarketsOptions = {}) => {
   const startDate = subDays(new Date(), 5).toISOString();
   const today = new Date().toISOString();

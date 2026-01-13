@@ -1,11 +1,11 @@
 import { Side } from '@polymarket/clob-client';
-import { MarketSide } from '../../../common/enums';
-import type { PolymarketMarket } from '../../../common/types';
-import { getOutcomePrice } from '../../../utils/prices';
-import { getAllCryptoEvents } from '../../polymarket/events';
-import { createOrder, getOpenOrders } from '../../polymarket/orders';
-import { getUserPositions } from '../../polymarket/positions';
-import type { OrderParams } from '../../polymarket/orders/types';
+import { MarketSide } from '../../../../common/enums';
+import type { PolymarketMarket } from '../../../../common/types';
+import { getOutcomePrice } from '../../../../utils/prices';
+import { getAllCryptoEvents } from '../../../polymarket/events';
+import { createOrder, getOpenOrders } from '../../../polymarket/orders';
+import { getUserPositions } from '../../../polymarket/positions';
+import type { OrderParams } from '../../../polymarket/orders/types';
 
 export const buyCryptoEvents = async () => {
   const [cryptoEvents, positions, orders] = await Promise.all([getAllCryptoEvents(), getUserPositions(), getOpenOrders()]);
@@ -26,7 +26,7 @@ export const buyCryptoEvents = async () => {
   const ordersToPlace: OrderParams[] = relevantMarkets.map((market) => ({
     tokenId: JSON.parse(market.clobTokenIds as unknown as string)[0],
     price: getOutcomePrice(market, MarketSide.Yes) - 0.005,
-    size: 10,
+    size: 15,
     side: Side.BUY,
   }));
 

@@ -1,9 +1,9 @@
-import { createOrder, getOpenOrders } from '../../polymarket/orders';
-import type { UserPosition } from '../../../common/types';
-import { getUserPositions } from '../../polymarket/positions';
-import logger from '../../../utils/logger';
+import { createOrder, getOpenOrders } from '../../../polymarket/orders';
+import type { UserPosition } from '../../../../common/types';
+import { getUserPositions } from '../../../polymarket/positions';
+import logger from '../../../../utils/logger';
 import { Side } from '@polymarket/clob-client';
-import { getEvent } from '../../polymarket/events';
+import { getEvent } from '../../../polymarket/events';
 
 export const sellCryptoPositions = async () => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
