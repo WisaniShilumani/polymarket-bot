@@ -26,6 +26,7 @@ const calculateMaxShares = (availableBalance: number) => {
 interface IMarketWithOrder extends PolymarketMarket {
   size: number;
   existingOrderPrice: number;
+  useMarketOrder: boolean;
 }
 
 const getPositionAndOrderSize = (conditionId: string, positions: UserPosition[], orders: OpenOrder[]) => {
@@ -56,6 +57,7 @@ export const buyCryptoEvents = async () => {
       if (!isInPriceRange) continue;
       const { shouldBuy, score, maxPrice } = await evaluateBuySignal(tokenId);
       if (!shouldBuy) continue;
+      if (market.spread >= 0.05) continue;
       if (yesOutcomePrice + 0.01 >= maxPrice) continue;
       const { totalSize, existingOrderPrice } = getPositionAndOrderSize(market.conditionId, positions, orders);
       const maxShares = calculateMaxShares(collateralBalance);
@@ -68,6 +70,7 @@ export const buyCryptoEvents = async () => {
         ...market,
         size: normalizedSize,
         existingOrderPrice,
+        useMarketOrder: market.spread <= 0.02,
       });
       logger.progress(`[score=${score}] Buying ${normalizedSize} shares of ${market.question} at ${yesOutcomePrice}`);
     }
@@ -78,7 +81,7 @@ export const buyCryptoEvents = async () => {
     price: market.existingOrderPrice || getOutcomePrice(market, MarketSide.Yes), // buy at exact price so we don't miss out on opportunities
     size: market.size,
     side: Side.BUY,
-    useMarketOrder: true,
+    useMarketOrder: market.useMarketOrder,
   }));
 
   await Promise.all(ordersToPlace.map((order) => createOrder(order)));
