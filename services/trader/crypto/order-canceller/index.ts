@@ -3,9 +3,10 @@ import type { PolymarketMarket, UserPosition } from '../../../../common/types';
 import { getEvent } from '../../../polymarket/events';
 import { cancelOrder, getOpenOrders } from '../../../polymarket/orders';
 import { getUserPositions } from '../../../polymarket/positions';
-import { differenceInHours } from 'date-fns';
+import { differenceInHours, differenceInMinutes } from 'date-fns';
 import { getOutcomePrice } from '../../../../utils/prices';
 import { MarketSide } from '../../../../common/enums';
+import { getMarketByAssetId } from '../../../polymarket/markets';
 
 export const cancelCryptoStaleOrders = async () => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
@@ -19,17 +20,16 @@ export const cancelCryptoStaleOrders = async () => {
 
   for (const order of unmatchedOrders) {
     if (order.side !== Side.BUY) continue;
+    const market = await getMarketByAssetId(order.market);
     const event = events.find((event) => event.markets.some((market) => market.conditionId === order.market));
-    const isCryptoEvent = event?.tags?.some((t) => t.slug === 'crypto');
+    const isCryptoEvent = market.tags?.includes('Crypto');
     if (!isCryptoEvent) continue;
-    if (!event) continue;
-    const positions = positionsByEventIdMap[event.id];
+    const positions = event ? positionsByEventIdMap[event.id] : [];
     const existingMarketPositions = positions?.filter((p) => p.conditionId === order.market); // TODO - should we check on condition id instead?
     if (existingMarketPositions?.length) continue;
-    const hoursSinceCreation = Math.abs(differenceInHours(new Date(), new Date(order.created_at * 1000)));
-    const market = event.markets.find((m) => m.conditionId === order.market) as PolymarketMarket;
+    const minutesSinceCreation = Math.abs(differenceInMinutes(new Date(), new Date(order.created_at * 1000)));
     const priceDifference = getOutcomePrice(market, MarketSide.Yes) - Number(order.price);
-    if (hoursSinceCreation > 4 || priceDifference >= 0.02) {
+    if (minutesSinceCreation > 30 || priceDifference >= 0.02) {
       await cancelOrder(order.id);
       console.log(`Cancelled BUY crypto order ${market.question} at $${order.price} @ ${Number(order.original_size) - Number(order.size_matched)} shares`);
     }
