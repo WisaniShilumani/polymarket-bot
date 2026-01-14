@@ -4,6 +4,7 @@ import { scanMarketsForSimpleArbitrage } from './services/arbitrage/market-simpl
 import { displayMarketSimpleArbitrageResults } from './services/arbitrage/logger';
 import { getAccountCollateralBalance } from './services/polymarket/account-balance';
 import { evaluateBuySignal } from './services/polymarket/price-history';
+import { getOrdersReport } from './services/reporting/orders';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot');
 
@@ -11,6 +12,7 @@ async function main() {
   if (Number(1) === 1) {
     // await getUpcomingPositions();
     // await cancelCryptoStaleOrders();
+    await getOrdersReport();
     const info = await evaluateBuySignal('103177127930055330392441373349372732434896433945295434937281341249293735506094');
     console.log(info);
     // await buyIndicesEvents();

@@ -110,6 +110,8 @@ export const buildMarketsUrl = (options: GetMarketsOptions = {}) => {
   return url;
 };
 
+export const buildMarketsBySlugUrl = (slug: string) => `${POLYMARKET_API_URL}/markets/slug/${slug}`;
+
 export const buildPriceHistoryUrl = (market: string, startTs: Date, endTs: Date) => {
   const params = new URLSearchParams({
     market,

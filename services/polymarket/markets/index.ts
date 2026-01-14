@@ -1,7 +1,7 @@
 import type { GetMarketsOptions, PolymarketMarket } from '../../../common/types';
 import logger from '../../../utils/logger';
 import { http } from '../../../utils/http';
-import { buildMarketsUrl } from '../utils';
+import { buildMarketsBySlugUrl, buildMarketsUrl } from '../utils';
 import { getClobClient } from '..';
 
 /**
@@ -24,8 +24,23 @@ export const getMarketsFromRest = async (options: GetMarketsOptions = {}): Promi
   }
 };
 
+export const getMarketsBySlugFromRest = async (slug: string): Promise<PolymarketMarket> => {
+  const url = buildMarketsBySlugUrl(slug);
+  try {
+    const market = await http.get(url).json<PolymarketMarket>();
+    return market;
+  } catch (error) {
+    logger.error('Error fetching markets from Polymarket API:', error);
+    throw error;
+  }
+};
+
 export const getMarketByAssetId = async (assetId: string): Promise<any> => {
   const client = await getClobClient();
   const market = await client.getMarket(assetId);
-  return market;
+  const marketBySlug = await getMarketsBySlugFromRest(market.market_slug);
+  return {
+    ...market,
+    ...marketBySlug,
+  };
 };
