@@ -21,7 +21,7 @@ export const sellCryptoPositions = async () => {
   });
 
   for (const event of eventsPositionsToSell) {
-    if (!event?.positions) return;
+    if (!event?.positions) continue;
     const marketOrders = event.positions
       .filter((p) => !openOrderMarketIds.has(p.conditionId))
       .map((position) => ({

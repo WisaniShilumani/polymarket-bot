@@ -10,7 +10,6 @@ import { MarketSide } from '../../../../common/enums';
 export const cancelCryptoStaleOrders = async () => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
   const unmatchedOrders = orders.filter((order) => !positions.some((position) => position.asset === order.asset_id));
-  const staleOrders = unmatchedOrders.filter((order) => Math.abs(differenceInHours(new Date(), new Date(order.created_at * 1000))));
   const positionsByEventIdMap: Record<string, UserPosition[]> = {};
   positions.forEach((position) => {
     positionsByEventIdMap[position.eventId] = [...(positionsByEventIdMap[position.eventId] || []), position];
@@ -18,7 +17,7 @@ export const cancelCryptoStaleOrders = async () => {
   const allEventIds = [...new Set(positions.map((position) => position.eventId))];
   const events = await Promise.all(allEventIds.map((eventId) => getEvent(eventId)));
 
-  for (const order of staleOrders) {
+  for (const order of unmatchedOrders) {
     if (order.side !== Side.BUY) continue;
     const event = events.find((event) => event.markets.some((market) => market.conditionId === order.market));
     const isCryptoEvent = event?.tags?.some((t) => t.slug === 'crypto');
