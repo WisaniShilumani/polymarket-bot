@@ -4,6 +4,7 @@ import logger from '../../../utils/logger';
 import type { OrderParams, OrderResult, ArbitrageOrderParams } from './types';
 import { ORDERS_ENABLED } from '../../../config';
 import { LRUCache } from 'lru-cache';
+import { getLastPurchaseTime, setLastPurchaseTime } from '../../cache';
 
 const failedOrderEventsCache = new LRUCache<string, boolean>({
   max: 1000,
@@ -14,7 +15,16 @@ const failedOrderEventsCache = new LRUCache<string, boolean>({
  */
 export const createOrder = async (params: OrderParams): Promise<OrderResult> => {
   try {
-    if (!ORDERS_ENABLED) return { success: true, orderId: 'ORDERS_ENABLED is disabled' };
+    const lastPurchaseTime = getLastPurchaseTime(params.tokenId);
+    if (lastPurchaseTime && Date.now() - lastPurchaseTime < 30_000) {
+      logger.info(`Skipping purchase because last purchase was less than 30 seconds ago for token ${params.tokenId}`);
+      return { success: true, orderId: 'LAST_PURCHASE_TIME_CACHE_HIT' };
+    }
+
+    if (!ORDERS_ENABLED) {
+      setLastPurchaseTime(params.tokenId);
+      return { success: true, orderId: 'ORDERS_ENABLED is disabled' };
+    }
     const clobClient = await getClobClient();
     const side = params.side === 'BUY' ? Side.BUY : Side.SELL;
     const response = await clobClient.createAndPostOrder({
@@ -26,6 +36,7 @@ export const createOrder = async (params: OrderParams): Promise<OrderResult> => 
 
     if (!response.orderID) throw new Error('No order ID returned');
     logger.success(`  📝 Order placed: ${params.side} ${params.size} shares @ $${params.price} - Order ID: ${response.orderID}`);
+    setLastPurchaseTime(params.tokenId);
     return {
       success: true,
       orderId: response.orderID,

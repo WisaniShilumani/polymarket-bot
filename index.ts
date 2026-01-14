@@ -32,7 +32,6 @@ async function main() {
     await sellGoodEventPositions();
     await Promise.all([buyCryptoEvents(), sellCryptoPositions(), cancelCryptoStaleOrders()]);
     await stopLossSeller();
-    await new Promise((resolve) => setTimeout(resolve, 5000));
     const totalOpenOrderValue = openOrders.reduce((sum, o) => sum + parseFloat(o.price) * parseFloat(o.original_size), 0);
     const availableCollateral = collateralBalance - totalOpenOrderValue;
     if (availableCollateral <= 2 && !DEMO_MODE) {

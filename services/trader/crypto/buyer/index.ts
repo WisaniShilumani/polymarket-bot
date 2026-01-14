@@ -9,6 +9,7 @@ import type { OrderParams } from '../../../polymarket/orders/types';
 import { evaluateBuySignal } from '../../../polymarket/price-history';
 import logger from '../../../../utils/logger';
 import { getAccountCollateralBalance } from '../../../polymarket/account-balance';
+import { getLastPurchaseTime, setLastPurchaseTime } from '../../../cache';
 
 const MIN_PRICE = 0.3;
 const MAX_PRICE = 0.67;
