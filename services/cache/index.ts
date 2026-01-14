@@ -1,7 +1,7 @@
 import { LRUCache } from 'lru-cache';
 
 const orderCancelCache = new LRUCache<string, number>({
-  max: 60000,
+  max: 3 * 60 * 1000,
 });
 
 export const setLastPurchaseTime = (tokenId: string) => {

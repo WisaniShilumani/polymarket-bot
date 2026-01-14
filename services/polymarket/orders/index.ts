@@ -16,8 +16,8 @@ const failedOrderEventsCache = new LRUCache<string, boolean>({
 export const createOrder = async (params: OrderParams): Promise<OrderResult> => {
   try {
     const lastPurchaseTime = getLastPurchaseTime(params.tokenId);
-    if (lastPurchaseTime && Date.now() - lastPurchaseTime < 30_000) {
-      logger.info(`Skipping purchase because last purchase was less than 30 seconds ago for token ${params.tokenId}`);
+    if (lastPurchaseTime && Date.now() - lastPurchaseTime < 60_000) {
+      logger.info(`Skipping purchase because last purchase was less than 1 minute ago for token ${params.tokenId}`);
       return { success: true, orderId: 'LAST_PURCHASE_TIME_CACHE_HIT' };
     }
 
