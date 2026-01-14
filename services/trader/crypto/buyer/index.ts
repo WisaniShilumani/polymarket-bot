@@ -32,9 +32,6 @@ const getPositionAndOrderSize = (conditionId: string, positions: UserPosition[],
 };
 export const buyCryptoEvents = async () => {
   const [cryptoEvents, positions, orders] = await Promise.all([getAllCryptoEvents(), getUserPositions(), getOpenOrders()]);
-  const openPositionMarketIds = positions.map((p) => p.conditionId);
-  const openOrderMarketIds = orders.filter((o) => o.outcome === 'Yes' && o.side === Side.BUY).map((o) => o.market);
-  const pendingMarketIds = new Set([...openPositionMarketIds, ...openOrderMarketIds]);
   const relevantMarkets: IMarketWithOrder[] = [];
   for (const event of cryptoEvents) {
     for (const market of event.markets) {

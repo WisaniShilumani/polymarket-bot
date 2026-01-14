@@ -31,7 +31,7 @@ export const cancelCryptoStaleOrders = async () => {
     const hoursSinceCreation = Math.abs(differenceInHours(new Date(), new Date(order.created_at * 1000)));
     const market = event.markets.find((m) => m.conditionId === order.market) as PolymarketMarket;
     const priceDifference = getOutcomePrice(market, MarketSide.Yes) - Number(order.price);
-    if (hoursSinceCreation > 4 || priceDifference > 0.05) {
+    if (hoursSinceCreation > 4 || priceDifference >= 0.03) {
       await cancelOrder(order.id);
       console.log(`Cancelled BUY crypto order ${market.question} at $${order.price} @ ${Number(order.original_size) - Number(order.size_matched)} shares`);
     }
