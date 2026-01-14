@@ -8,12 +8,20 @@ import { getUserPositions } from '../../../polymarket/positions';
 import type { OrderParams } from '../../../polymarket/orders/types';
 import { evaluateBuySignal } from '../../../polymarket/price-history';
 import logger from '../../../../utils/logger';
+import { getAccountCollateralBalance } from '../../../polymarket/account-balance';
 
 const MIN_PRICE = 0.3;
 const MAX_PRICE = 0.67;
 const MIN_VOLUME = 5_000;
-const MAX_SHARES = 80;
-const DIVISOR = 100 / MAX_SHARES;
+
+const calculateMaxShares = (availableBalance: number) => {
+  const averageAnticipatedScore = 60;
+  const averagePrice = 0.5;
+  const anticipatedMarketCount = 8;
+  const maxShares = (100 * availableBalance) / (averageAnticipatedScore * averagePrice * anticipatedMarketCount);
+  return Math.round(maxShares);
+};
+// const max shares = (60/(100/80))*0.5*8
 
 interface IMarketWithOrder extends PolymarketMarket {
   size: number;
@@ -30,7 +38,13 @@ const getPositionAndOrderSize = (conditionId: string, positions: UserPosition[],
   };
 };
 export const buyCryptoEvents = async () => {
-  const [cryptoEvents, positions, orders] = await Promise.all([getAllCryptoEvents(), getUserPositions(), getOpenOrders()]);
+  const [cryptoEvents, positions, orders, collateralBalance] = await Promise.all([
+    getAllCryptoEvents(),
+    getUserPositions(),
+    getOpenOrders(),
+    getAccountCollateralBalance(),
+  ]);
+
   const relevantMarkets: IMarketWithOrder[] = [];
   for (const event of cryptoEvents) {
     for (const market of event.markets) {
@@ -43,7 +57,10 @@ export const buyCryptoEvents = async () => {
       const { shouldBuy, score, reasons } = await evaluateBuySignal(tokenId);
       if (!shouldBuy) continue;
       const { totalSize, existingOrderPrice } = getPositionAndOrderSize(market.conditionId, positions, orders);
-      const maxSizeForMarket = Math.round(score / DIVISOR);
+      const maxShares = calculateMaxShares(collateralBalance);
+      console.log(`Max shares: ${maxShares}`);
+      const divisor = 100 / maxShares;
+      const maxSizeForMarket = Math.round(score / divisor);
       const remainingPurchaseableShares = Math.round(maxSizeForMarket - totalSize);
       if (remainingPurchaseableShares <= 0) continue;
       relevantMarkets.push({
