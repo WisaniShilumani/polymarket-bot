@@ -1,9 +1,9 @@
 import { Side, type OpenOrder } from '@polymarket/clob-client';
-import type { PolymarketMarket, UserPosition } from '../../../../common/types';
+import type { UserPosition } from '../../../../common/types';
 import { getEvent } from '../../../polymarket/events';
 import { cancelOrder, getOpenOrders } from '../../../polymarket/orders';
 import { getUserPositions } from '../../../polymarket/positions';
-import { differenceInHours, differenceInMinutes } from 'date-fns';
+import { differenceInMinutes } from 'date-fns';
 import { getOutcomePrice } from '../../../../utils/prices';
 import { MarketSide } from '../../../../common/enums';
 import { getMarketByAssetId } from '../../../polymarket/markets';

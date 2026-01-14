@@ -55,13 +55,12 @@ export const buyCryptoEvents = async () => {
       if (market.volumeNum < MIN_VOLUME) continue;
       const isInPriceRange = yesOutcomePrice > MIN_PRICE && yesOutcomePrice < MAX_PRICE;
       if (!isInPriceRange) continue;
-      const { shouldBuy, score, reasons } = await evaluateBuySignal(tokenId);
+      const { shouldBuy, score } = await evaluateBuySignal(tokenId);
       if (!shouldBuy) continue;
       const { totalSize, existingOrderPrice } = getPositionAndOrderSize(market.conditionId, positions, orders);
       const maxShares = calculateMaxShares(collateralBalance);
       const divisor = 100 / maxShares;
       const maxSizeForMarket = Math.round(score / divisor);
-
       const remainingPurchaseableShares = Math.round(maxSizeForMarket - totalSize);
       if (remainingPurchaseableShares <= 0) continue;
       const normalizedSize = Math.max(remainingPurchaseableShares, market.orderMinSize);
@@ -70,8 +69,7 @@ export const buyCryptoEvents = async () => {
         size: normalizedSize,
         existingOrderPrice,
       });
-      logger.progress(`Buying ${normalizedSize} shares of ${market.question} at ${yesOutcomePrice}`);
-      logger.info(`Signal information:\nSCORE = ${score}\nREASONS \n=========================\n ${reasons.join('\n')}`);
+      logger.progress(`[score=${score}] Buying ${normalizedSize} shares of ${market.question} at ${yesOutcomePrice}`);
     }
   }
 
