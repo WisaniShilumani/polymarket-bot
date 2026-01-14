@@ -1,7 +1,6 @@
 import { createOrder, getOpenOrders } from '../../../polymarket/orders';
 import type { UserPosition } from '../../../../common/types';
 import { getUserPositions } from '../../../polymarket/positions';
-import logger from '../../../../utils/logger';
 import { Side } from '@polymarket/clob-client';
 import { getEvent } from '../../../polymarket/events';
 
