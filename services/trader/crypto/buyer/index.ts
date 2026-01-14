@@ -12,6 +12,9 @@ import logger from '../../../../utils/logger';
 const MIN_PRICE = 0.3;
 const MAX_PRICE = 0.6;
 const MIN_VOLUME = 10_000;
+const MAX_SHARES = 30;
+const DIVISOR = 100 / MAX_SHARES;
+
 interface IMarketWithOrder extends PolymarketMarket {
   size: number;
 }
@@ -29,11 +32,12 @@ export const buyCryptoEvents = async () => {
       if (market.volumeNum < MIN_VOLUME) continue;
       const isInPriceRange = yesOutcomePrice > MIN_PRICE && yesOutcomePrice < MAX_PRICE;
       if (!isInPriceRange) continue;
-      const { shouldBuy, score, reasons, metrics } = await evaluateBuySignal(tokenId);
-      if (shouldBuy && !pendingMarketIds.has(market.conditionId)) {
+      const { shouldBuy, score, reasons } = await evaluateBuySignal(tokenId);
+      if (!shouldBuy) continue;
+      if (!pendingMarketIds.has(market.conditionId)) {
         relevantMarkets.push({
           ...market,
-          size: Math.round(score / 5),
+          size: Math.round(score / DIVISOR),
         });
         logger.progress(`Buying 5 shares of ${market.question} at ${yesOutcomePrice}`);
         logger.info(`Signal information:\nSCORE = ${score}\nREASONS \n=========================\n ${reasons.join('\n')}`);
