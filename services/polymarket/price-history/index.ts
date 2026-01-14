@@ -24,6 +24,7 @@ export interface VolatilityInfo {
 }
 
 export interface BuySignal {
+  maxPrice: number;
   shouldBuy: boolean;
   score: number; // 0-100, higher = better opportunity
   reasons: string[];
@@ -297,6 +298,7 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
     const priceChanges = collectPriceChanges(priceHistoryResponse.history);
     const upsideDeviation = calculateUpsideDeviation(priceChanges);
     const downsideDeviation = info.risk.downsideDeviation;
+    const maxPrice = Math.max(...priceHistoryResponse.history.map((dp) => dp.p));
 
     // Asymmetry ratio: >1 means upside volatility exceeds downside (good for our strategy)
     const asymmetryRatio = downsideDeviation > 0 ? upsideDeviation / downsideDeviation : upsideDeviation > 0 ? 2 : 1;
@@ -377,6 +379,7 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
       shouldBuy,
       score,
       reasons,
+      maxPrice,
       metrics: {
         upswingRatio,
         riskRewardRatio,
@@ -388,6 +391,7 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
   } catch (error) {
     logger.error('Error evaluating buy signal:', error);
     return {
+      maxPrice: 0,
       shouldBuy: false,
       score: 0,
       reasons: [],

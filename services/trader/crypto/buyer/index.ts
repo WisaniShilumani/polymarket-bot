@@ -54,8 +54,9 @@ export const buyCryptoEvents = async () => {
       if (market.volumeNum < MIN_VOLUME) continue;
       const isInPriceRange = yesOutcomePrice > MIN_PRICE && yesOutcomePrice < MAX_PRICE;
       if (!isInPriceRange) continue;
-      const { shouldBuy, score } = await evaluateBuySignal(tokenId);
+      const { shouldBuy, score, maxPrice } = await evaluateBuySignal(tokenId);
       if (!shouldBuy) continue;
+      if (yesOutcomePrice + 0.01 >= maxPrice) continue;
       const { totalSize, existingOrderPrice } = getPositionAndOrderSize(market.conditionId, positions, orders);
       const maxShares = calculateMaxShares(collateralBalance);
       const divisor = 100 / maxShares;
