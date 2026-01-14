@@ -1,4 +1,4 @@
-import { Side } from '@polymarket/clob-client';
+import { Side, type OpenOrder } from '@polymarket/clob-client';
 import type { PolymarketMarket, UserPosition } from '../../../../common/types';
 import { getEvent } from '../../../polymarket/events';
 import { cancelOrder, getOpenOrders } from '../../../polymarket/orders';
@@ -17,6 +17,7 @@ export const cancelCryptoStaleOrders = async () => {
   });
   const allEventIds = [...new Set(positions.map((position) => position.eventId))];
   const events = await Promise.all(allEventIds.map((eventId) => getEvent(eventId)));
+
   for (const order of staleOrders) {
     if (order.side !== Side.BUY) continue;
     const event = events.find((event) => event.markets.some((market) => market.conditionId === order.market));
@@ -34,5 +35,23 @@ export const cancelCryptoStaleOrders = async () => {
       console.log(`Cancelled BUY crypto order ${market.question} at $${order.price} @ ${Number(order.original_size) - Number(order.size_matched)} shares`);
     }
     continue;
+  }
+
+  const buyOrdersByMarketId = orders
+    .filter((o) => o.side === Side.BUY)
+    .reduce((acc, order) => {
+      acc[order.market] = [...(acc[order.market] || []), order];
+      return acc;
+    }, {} as Record<string, OpenOrder[]>);
+
+  for (const marketId in buyOrdersByMarketId) {
+    const orders = buyOrdersByMarketId[marketId] || [];
+    const buyOrders = orders.filter((o) => o.side === Side.BUY);
+    if (buyOrders.length <= 2) continue;
+    const otherOrders = buyOrders.slice(2);
+    if (otherOrders.length > 0) {
+      await Promise.all(otherOrders.map((o) => cancelOrder(o.id)));
+      console.log(`Cancelled ${otherOrders.length} BUY crypto orders for market ${marketId}`);
+    }
   }
 };

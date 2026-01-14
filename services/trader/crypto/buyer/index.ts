@@ -24,7 +24,6 @@ const getPositionAndOrderSize = (conditionId: string, positions: UserPosition[],
   const position = positions.find((p) => p.conditionId === conditionId);
   const order = orders.find((o) => o.market === conditionId && o.side === Side.BUY && o.outcome === 'Yes');
   const totalSize = Number(position?.size || 0) + Number(order?.original_size || 0) - Number(order?.size_matched || 0);
-  console.log(`Found ${totalSize} total shares for ${conditionId}`);
   return {
     totalSize,
     existingOrderPrice: Number(order?.price || 0),
