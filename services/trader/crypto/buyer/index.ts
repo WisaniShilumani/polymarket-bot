@@ -64,12 +64,13 @@ export const buyCryptoEvents = async () => {
       const maxSizeForMarket = Math.round(score / divisor);
       const remainingPurchaseableShares = Math.round(maxSizeForMarket - totalSize);
       if (remainingPurchaseableShares <= 0) continue;
+      const normalizedSize = Math.min(remainingPurchaseableShares, market.orderMinSize);
       relevantMarkets.push({
         ...market,
-        size: remainingPurchaseableShares,
+        size: normalizedSize,
         existingOrderPrice,
       });
-      logger.progress(`Buying ${remainingPurchaseableShares} shares of ${market.question} at ${yesOutcomePrice}`);
+      logger.progress(`Buying ${normalizedSize} shares of ${market.question} at ${yesOutcomePrice}`);
       logger.info(`Signal information:\nSCORE = ${score}\nREASONS \n=========================\n ${reasons.join('\n')}`);
     }
   }
