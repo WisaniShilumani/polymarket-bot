@@ -1,4 +1,4 @@
-import { createOrder, getOpenOrders } from '../../../polymarket/orders';
+import { cancelOrder, createOrder, getOpenOrders } from '../../../polymarket/orders';
 import type { UserPosition } from '../../../../common/types';
 import { getUserPositions } from '../../../polymarket/positions';
 import logger from '../../../../utils/logger';
@@ -44,6 +44,11 @@ export const stopLossSeller = async () => {
           2,
         )}, loss: $${unrealizedLoss.toFixed(2)})`,
       );
+
+      if (currentOrder) {
+        await cancelOrder(currentOrder.id);
+        console.log(`Cancelled current order ${currentOrder.id} for ${eventData.title}`);
+      }
 
       await createOrder({
         tokenId: position.asset,
