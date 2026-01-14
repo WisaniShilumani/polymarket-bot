@@ -7,13 +7,15 @@ import { getUpcomingPositions } from './services/order-management/upcoming-posit
 import { buyCryptoEvents } from './services/trader/crypto/buyer';
 import { buyIndicesEvents } from './services/trader/indices/buyer';
 import { sellIndicesEvents } from './services/trader/indices/seller';
+import { cancelStaleIndividualOrders } from './services/order-management/order-canceller';
+import { cancelCryptoStaleOrders } from './services/trader/crypto/order-canceller';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot');
 
 async function main() {
   if (Number(1) === 1) {
     await getUpcomingPositions();
-    // await buyCryptoEvents();
+    await cancelCryptoStaleOrders();
     // await buyIndicesEvents();
     return;
   }

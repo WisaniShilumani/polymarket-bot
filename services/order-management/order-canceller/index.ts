@@ -1,11 +1,13 @@
 import { Side } from '@polymarket/clob-client';
-import type { UserPosition } from '../../../common/types';
+import type { PolymarketMarket, UserPosition } from '../../../common/types';
 import { DEMO_MODE } from '../../../config';
 import { getEvent } from '../../polymarket/events';
 import { getMarketByAssetId } from '../../polymarket/markets';
 import { cancelOrder, getOpenOrders } from '../../polymarket/orders';
 import { getUserPositions } from '../../polymarket/positions';
 import { differenceInHours } from 'date-fns';
+import { getOutcomePrice } from '../../../utils/prices';
+import { MarketSide } from '../../../common/enums';
 
 // PURPOSE: To make space for new orders by cancelling stale orders
 // ================================================================
@@ -40,6 +42,9 @@ export const cancelStaleIndividualOrders = async () => {
     const hoursSinceCreation = Math.abs(differenceInHours(new Date(), new Date(order.created_at * 1000)));
     const isCryptoEvent = event?.tags?.some((t) => t.slug === 'crypto');
     if (isCryptoEvent) {
+      const market = event.markets.find((m) => m.conditionId === order.market) as PolymarketMarket;
+      const priceDifference = Math.abs(Number(order.price) - getOutcomePrice(market, MarketSide.Yes));
+      console.log({ priceDifference });
       if (hoursSinceCreation > 4 && order.side === Side.BUY) {
         await cancelOrder(order.id);
         console.log(`Cancelled BUY crypto order ${order.id} for ${event.title}`);

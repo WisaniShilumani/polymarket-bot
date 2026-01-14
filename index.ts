@@ -11,6 +11,7 @@ import { fulfillOutstandingOrders } from './services/order-management/order-fulf
 import { cancelStaleIndividualOrders } from './services/order-management/order-canceller';
 import { buyCryptoEvents } from './services/trader/crypto/buyer';
 import { sellCryptoPositions } from './services/trader/crypto/seller';
+import { cancelCryptoStaleOrders } from './services/trader/crypto/order-canceller';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot...');
 
@@ -28,7 +29,7 @@ async function main() {
     const [openOrders, collateralBalance] = await Promise.all([getOpenOrders(), getAccountCollateralBalance()]);
     await fulfillOutstandingOrders(collateralBalance);
     await sellGoodEventPositions();
-    await Promise.all([buyCryptoEvents(), sellCryptoPositions(), cancelStaleIndividualOrders()]);
+    await Promise.all([buyCryptoEvents(), sellCryptoPositions(), cancelCryptoStaleOrders()]);
     const totalOpenOrderValue = openOrders.reduce((sum, o) => sum + parseFloat(o.price) * parseFloat(o.original_size), 0);
     const availableCollateral = collateralBalance - totalOpenOrderValue;
     if (availableCollateral <= 2 && !DEMO_MODE) {
