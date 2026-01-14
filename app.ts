@@ -3,19 +3,16 @@ import logger from './utils/logger';
 import { scanMarketsForSimpleArbitrage } from './services/arbitrage/market-simple-opportunities';
 import { displayMarketSimpleArbitrageResults } from './services/arbitrage/logger';
 import { getAccountCollateralBalance } from './services/polymarket/account-balance';
-import { getUpcomingPositions } from './services/order-management/upcoming-positions';
-import { buyCryptoEvents } from './services/trader/crypto/buyer';
-import { buyIndicesEvents } from './services/trader/indices/buyer';
-import { sellIndicesEvents } from './services/trader/indices/seller';
-import { cancelStaleIndividualOrders } from './services/order-management/order-canceller';
-import { cancelCryptoStaleOrders } from './services/trader/crypto/order-canceller';
+import { evaluateBuySignal } from './services/polymarket/price-history';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot');
 
 async function main() {
   if (Number(1) === 1) {
-    await getUpcomingPositions();
-    await cancelCryptoStaleOrders();
+    // await getUpcomingPositions();
+    // await cancelCryptoStaleOrders();
+    const info = await evaluateBuySignal('103177127930055330392441373349372732434896433945295434937281341249293735506094');
+    console.log(info);
     // await buyIndicesEvents();
     return;
   }

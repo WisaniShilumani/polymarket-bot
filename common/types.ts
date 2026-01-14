@@ -69,6 +69,15 @@ export interface PolymarketMarket {
   endDate: string;
 }
 
+export interface PolymarketPriceHistoryDataPoint {
+  t: number;
+  p: number;
+}
+
+export interface PolymarketPriceHistory {
+  history: PolymarketPriceHistoryDataPoint[];
+}
+
 export interface MarketForOrder {
   yesTokenId: string;
   noTokenId: string;
