@@ -5,6 +5,7 @@ export interface OrderParams {
   price: number;
   size: number;
   side: Side;
+  useMarketOrder?: boolean;
 }
 
 export interface OrderResult {

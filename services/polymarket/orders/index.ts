@@ -27,12 +27,19 @@ export const createOrder = async (params: OrderParams): Promise<OrderResult> => 
     }
     const clobClient = await getClobClient();
     const side = params.side === 'BUY' ? Side.BUY : Side.SELL;
-    const response = await clobClient.createAndPostOrder({
-      tokenID: params.tokenId,
-      price: params.price,
-      size: params.size,
-      side,
-    });
+
+    const response = params.useMarketOrder
+      ? await clobClient.createAndPostMarketOrder({
+          tokenID: params.tokenId,
+          amount: params.size * params.price,
+          side,
+        })
+      : await clobClient.createAndPostOrder({
+          tokenID: params.tokenId,
+          price: params.price,
+          size: params.size,
+          side,
+        });
 
     if (!response.orderID) throw new Error('No order ID returned');
     logger.success(`  📝 Order placed: ${params.side} ${params.size} shares @ $${params.price} - Order ID: ${response.orderID}`);

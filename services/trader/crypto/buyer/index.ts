@@ -78,6 +78,7 @@ export const buyCryptoEvents = async () => {
     price: market.existingOrderPrice || getOutcomePrice(market, MarketSide.Yes), // buy at exact price so we don't miss out on opportunities
     size: market.size,
     side: Side.BUY,
+    useMarketOrder: true,
   }));
 
   await Promise.all(ordersToPlace.map((order) => createOrder(order)));
