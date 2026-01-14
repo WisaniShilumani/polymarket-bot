@@ -16,7 +16,6 @@ const EXCLUSION_LIST = [114242]; // IRAN BET
 const isMonitorMode = !!DEMO_MODE;
 export const sellGoodEventPositions = async () => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
-  logger.log(`Found ${positions.length} positions and ${orders.length} open orders`);
   const positionsByEventIdMap = new Map<string, UserPosition[]>();
   positions.forEach((position) => {
     positionsByEventIdMap.set(position.eventId, [...(positionsByEventIdMap.get(position.eventId) || []), position]);

@@ -8,8 +8,6 @@ import { getEvent } from '../../../polymarket/events';
 export const sellCryptoPositions = async () => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
   const openOrderMarketIds = new Set(orders.filter((o) => o.outcome === 'Yes' && o.side === Side.SELL).map((o) => o.market));
-
-  logger.log(`Found ${positions.length} positions and ${orders.length} open orders`);
   const positionsByEventIdMap = new Map<string, UserPosition[]>();
   positions.forEach((position) => {
     positionsByEventIdMap.set(position.eventId, [...(positionsByEventIdMap.get(position.eventId) || []), position]);
@@ -28,7 +26,7 @@ export const sellCryptoPositions = async () => {
       .filter((p) => !openOrderMarketIds.has(p.conditionId))
       .map((position) => ({
         tokenId: position.asset,
-        price: position.curPrice + 0.02,
+        price: position.avgPrice + 0.02,
         size: position.size,
         side: 1,
       }));

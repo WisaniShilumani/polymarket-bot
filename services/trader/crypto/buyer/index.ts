@@ -1,6 +1,6 @@
-import { Side } from '@polymarket/clob-client';
+import { Side, type OpenOrder } from '@polymarket/clob-client';
 import { MarketSide } from '../../../../common/enums';
-import type { PolymarketMarket } from '../../../../common/types';
+import type { PolymarketMarket, UserPosition } from '../../../../common/types';
 import { getOutcomePrice } from '../../../../utils/prices';
 import { getAllCryptoEvents } from '../../../polymarket/events';
 import { createOrder, getOpenOrders } from '../../../polymarket/orders';
@@ -17,7 +17,19 @@ const DIVISOR = 100 / MAX_SHARES;
 
 interface IMarketWithOrder extends PolymarketMarket {
   size: number;
+  existingOrderPrice: number;
 }
+
+const getPositionAndOrderSize = (conditionId: string, positions: UserPosition[], orders: OpenOrder[]) => {
+  const position = positions.find((p) => p.conditionId === conditionId);
+  const order = orders.find((o) => o.market === conditionId && o.side === Side.BUY && o.outcome === 'Yes');
+  const totalSize = Number(position?.size || 0) + Number(order?.original_size || 0) - Number(order?.size_matched || 0);
+  console.log(`Found ${totalSize} total shares for ${conditionId}`);
+  return {
+    totalSize,
+    existingOrderPrice: Number(order?.price || 0),
+  };
+};
 export const buyCryptoEvents = async () => {
   const [cryptoEvents, positions, orders] = await Promise.all([getAllCryptoEvents(), getUserPositions(), getOpenOrders()]);
   const openPositionMarketIds = positions.map((p) => p.conditionId);
@@ -34,21 +46,24 @@ export const buyCryptoEvents = async () => {
       if (!isInPriceRange) continue;
       const { shouldBuy, score, reasons } = await evaluateBuySignal(tokenId);
       if (!shouldBuy) continue;
-      if (!pendingMarketIds.has(market.conditionId)) {
-        relevantMarkets.push({
-          ...market,
-          size: Math.round(score / DIVISOR),
-        });
-        logger.progress(`Buying 5 shares of ${market.question} at ${yesOutcomePrice}`);
-        logger.info(`Signal information:\nSCORE = ${score}\nREASONS \n=========================\n ${reasons.join('\n')}`);
-      }
+      const { totalSize, existingOrderPrice } = getPositionAndOrderSize(market.conditionId, positions, orders);
+      const maxSizeForMarket = Math.round(score / DIVISOR);
+      const remainingPurchaseableShares = Math.round(maxSizeForMarket - totalSize);
+      if (remainingPurchaseableShares <= 0) continue;
+      relevantMarkets.push({
+        ...market,
+        size: remainingPurchaseableShares,
+        existingOrderPrice,
+      });
+      logger.progress(`Buying ${remainingPurchaseableShares} shares of ${market.question} at ${yesOutcomePrice}`);
+      logger.info(`Signal information:\nSCORE = ${score}\nREASONS \n=========================\n ${reasons.join('\n')}`);
     }
   }
 
   const ordersToPlace: OrderParams[] = relevantMarkets.map((market) => ({
     tokenId: JSON.parse(market.clobTokenIds as unknown as string)[0],
-    price: getOutcomePrice(market, MarketSide.Yes) - 0.004,
-    size: 20,
+    price: market.existingOrderPrice || getOutcomePrice(market, MarketSide.Yes) - 0.004,
+    size: market.size,
     side: Side.BUY,
   }));
 

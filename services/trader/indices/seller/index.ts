@@ -1,15 +1,12 @@
 import { createOrder, getOpenOrders } from '../../../polymarket/orders';
 import type { UserPosition } from '../../../../common/types';
 import { getUserPositions } from '../../../polymarket/positions';
-import logger from '../../../../utils/logger';
 import { Side } from '@polymarket/clob-client';
 import { getEvent } from '../../../polymarket/events';
 
 export const sellIndicesEvents = async () => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
   const openOrderMarketIds = new Set(orders.filter((o) => o.outcome === 'Yes' && o.side === Side.SELL).map((o) => o.market));
-
-  logger.log(`Found ${positions.length} positions and ${orders.length} open orders`);
   const positionsByEventIdMap = new Map<string, UserPosition[]>();
   positions.forEach((position) => {
     positionsByEventIdMap.set(position.eventId, [...(positionsByEventIdMap.get(position.eventId) || []), position]);
