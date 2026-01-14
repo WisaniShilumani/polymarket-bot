@@ -12,7 +12,7 @@ import logger from '../../../../utils/logger';
 const MIN_PRICE = 0.3;
 const MAX_PRICE = 0.67;
 const MIN_VOLUME = 5_000;
-const MAX_SHARES = 50;
+const MAX_SHARES = 80;
 const DIVISOR = 100 / MAX_SHARES;
 
 interface IMarketWithOrder extends PolymarketMarket {
