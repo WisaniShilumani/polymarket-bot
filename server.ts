@@ -1,6 +1,7 @@
 import http from 'http';
 import logger from './utils/logger';
 import { getOrdersReport } from './services/reporting/orders';
+import { generateOrdersHTML } from './views/orders';
 
 // Start HTTP server for Elastic Beanstalk health checks
 const PORT = process.env.PORT || 8080;
@@ -16,8 +17,9 @@ const server = http.createServer((req, res) => {
     );
   } else if (req.url === '/orders') {
     getOrdersReport().then((orders) => {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(orders));
+      const html = generateOrdersHTML(orders);
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(html);
     });
   } else {
     res.writeHead(404, { 'Content-Type': 'application/json' });
