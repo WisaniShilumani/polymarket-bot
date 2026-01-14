@@ -59,7 +59,7 @@ export const buyCryptoEvents = async () => {
 
   const ordersToPlace: OrderParams[] = relevantMarkets.map((market) => ({
     tokenId: JSON.parse(market.clobTokenIds as unknown as string)[0],
-    price: market.existingOrderPrice || getOutcomePrice(market, MarketSide.Yes) - 0.004,
+    price: market.existingOrderPrice || getOutcomePrice(market, MarketSide.Yes), // buy at exact price so we don't miss out on opportunities
     size: market.size,
     side: Side.BUY,
   }));
