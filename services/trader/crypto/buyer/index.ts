@@ -59,12 +59,12 @@ export const buyCryptoEvents = async () => {
       if (!shouldBuy) continue;
       const { totalSize, existingOrderPrice } = getPositionAndOrderSize(market.conditionId, positions, orders);
       const maxShares = calculateMaxShares(collateralBalance);
-      console.log(`Max shares: ${maxShares}`);
       const divisor = 100 / maxShares;
       const maxSizeForMarket = Math.round(score / divisor);
+
       const remainingPurchaseableShares = Math.round(maxSizeForMarket - totalSize);
       if (remainingPurchaseableShares <= 0) continue;
-      const normalizedSize = Math.min(remainingPurchaseableShares, market.orderMinSize);
+      const normalizedSize = Math.max(remainingPurchaseableShares, market.orderMinSize);
       relevantMarkets.push({
         ...market,
         size: normalizedSize,
