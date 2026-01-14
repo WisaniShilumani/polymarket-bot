@@ -12,7 +12,7 @@ import { getAccountCollateralBalance } from '../../../polymarket/account-balance
 
 const MIN_PRICE = 0.3;
 const MAX_PRICE = 0.67;
-const MIN_VOLUME = 2_500;
+const MIN_VOLUME = 5_000;
 
 const calculateMaxShares = (availableBalance: number) => {
   const averageAnticipatedScore = 60;
@@ -70,7 +70,7 @@ export const buyCryptoEvents = async () => {
         ...market,
         size: normalizedSize,
         existingOrderPrice,
-        useMarketOrder: market.spread <= 0.02,
+        useMarketOrder: market.spread <= 0.01,
       });
       logger.progress(`[score=${score}] Buying ${normalizedSize} shares of ${market.question} at ${yesOutcomePrice}`);
     }
@@ -78,7 +78,7 @@ export const buyCryptoEvents = async () => {
 
   const ordersToPlace: OrderParams[] = relevantMarkets.map((market) => ({
     tokenId: JSON.parse(market.clobTokenIds as unknown as string)[0],
-    price: market.existingOrderPrice || getOutcomePrice(market, MarketSide.Yes), // buy at exact price so we don't miss out on opportunities
+    price: market.existingOrderPrice || getOutcomePrice(market, MarketSide.Yes), // buy at exact price so we don't miss out on opportunities // or midpoint for efficiency?
     size: market.size,
     side: Side.BUY,
     useMarketOrder: market.useMarketOrder,
