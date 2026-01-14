@@ -29,7 +29,7 @@ export const cancelCryptoStaleOrders = async () => {
     if (existingMarketPositions?.length) continue;
     const minutesSinceCreation = Math.abs(differenceInMinutes(new Date(), new Date(order.created_at * 1000)));
     const priceDifference = getOutcomePrice(market, MarketSide.Yes) - Number(order.price);
-    if (minutesSinceCreation > 5 || priceDifference >= 0.02) {
+    if (minutesSinceCreation > 5 || priceDifference >= 0.03) {
       await cancelOrder(order.id);
       console.log(`Cancelled BUY crypto order ${market.question} at $${order.price} @ ${Number(order.original_size) - Number(order.size_matched)} shares`);
     }
