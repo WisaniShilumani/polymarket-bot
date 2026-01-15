@@ -12,13 +12,13 @@ export const sellCryptoPositions = async () => {
     if (!isCryptoEvent) continue;
     const relatedOrders = orders.filter((o) => o.market === position.conditionId && o.side === Side.SELL);
     const totalOpenOrderSize = relatedOrders.reduce((acc, o) => acc + Number(o.original_size) - Number(o.size_matched), 0);
-    const remainingSizeToSell = Number(position.size) - totalOpenOrderSize;
-    if (remainingSizeToSell <= 0) continue;
-    console.log(`Selling ${remainingSizeToSell} shares for ${market.question} at ${position.avgPrice + 0.008}`);
+    const remainingSizeToSell = Number(position.size) - totalOpenOrderSize - 0.001;
+    if (remainingSizeToSell <= market.orderMinSize) continue;
+    const flooredToTwoDecimalPlaces = Math.floor(remainingSizeToSell * 100) / 100;
     await createOrder({
       tokenId: position.asset,
       price: position.avgPrice + 0.008,
-      size: remainingSizeToSell,
+      size: Number(flooredToTwoDecimalPlaces.toFixed(2)),
       side: Side.SELL,
     });
   }
