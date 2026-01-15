@@ -7,7 +7,7 @@ import { getEvent } from '../../../polymarket/events';
 import { getOutcomePrice } from '../../../../utils/prices';
 import { MarketSide } from '../../../../common/enums';
 
-const STOP_LOSS_THRESHOLD = 0.05; // Exit if price drops 15 cents below avgPrice
+const STOP_LOSS_THRESHOLD = 0.1; // Exit if price drops 15 cents below avgPrice
 
 export const stopLossSeller = async (marketSide: MarketSide = MarketSide.Yes) => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
@@ -39,6 +39,7 @@ export const stopLossSeller = async (marketSide: MarketSide = MarketSide.Yes) =>
         continue;
       }
       const unrealizedLoss = position.avgPrice - currentPrice;
+      // const minutesSinceCreation = Math.abs(differenceInMinutes(new Date(), new Date(position. * 1000)));
       if (unrealizedLoss < STOP_LOSS_THRESHOLD) continue;
       logger.info(
         `🛑 STOP LOSS: Selling ${position.size} shares of ${market.question} at $${currentPrice.toFixed(2)} (avg: $${position.avgPrice.toFixed(

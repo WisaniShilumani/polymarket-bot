@@ -23,28 +23,8 @@ export const cancelCryptoStaleOrders = async (marketSide: MarketSide = MarketSid
     const priceDifference = getOutcomePrice(market, marketSide) - Number(order.price);
     const isCryptoEvent = market.tags?.includes('Crypto');
     if (!isCryptoEvent) continue;
-    if (order.side !== Side.BUY) {
-      if (minutesSinceCreation > 120) {
-        await cancelOrder(order.id);
-        console.log(`Cancelled SELL crypto order ${market.question} at $${order.price} @ ${Number(order.original_size) - Number(order.size_matched)} shares`);
-        console.log(
-          `Creating new SELL crypto order ${market.question} at $${getOutcomePrice(market, marketSide)} @ ${
-            Number(order.original_size) - Number(order.size_matched)
-          } shares`,
-        );
-        await createOrder({
-          tokenId: order.asset_id,
-          price: getOutcomePrice(market, marketSide),
-          size: Number(order.original_size) - Number(order.size_matched),
-          side: Side.SELL,
-          useMarketOrder: market.spread <= 0.01,
-        });
-      }
-      continue;
-    }
-
+    if (order.side !== Side.BUY) continue;
     const event = events.find((event) => event.markets.some((market) => market.conditionId === order.market));
-
     const positions = event ? positionsByEventIdMap[event.id] : [];
     const existingMarketPositions = positions?.filter((p) => p.conditionId === order.market); // TODO - should we check on condition id instead?
     if (existingMarketPositions?.length) continue;

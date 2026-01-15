@@ -1,10 +1,8 @@
 import 'dotenv/config';
 import './server';
 import logger from './utils/logger';
-import { getAccountCollateralBalance } from './services/polymarket/account-balance';
 import { loadCacheFromFile } from './services/openai';
 import { sellGoodEventPositions } from './services/order-management/positions-seller';
-import { fulfillOutstandingOrders } from './services/order-management/order-fulfiller';
 import { buyCryptoEvents } from './services/trader/crypto/buyer';
 import { sellCryptoPositions } from './services/trader/crypto/seller';
 import { cancelCryptoStaleOrders } from './services/trader/crypto/order-canceller';
@@ -25,15 +23,11 @@ async function main() {
   let ordersPlaced = false; // Will run indefinitely
   while (!ordersPlaced) {
     logger.progress('Starting trading cycle...');
-    const collateralBalance = await getAccountCollateralBalance();
-    await fulfillOutstandingOrders(collateralBalance);
+    // const collateralBalance = await getAccountCollateralBalance();
+    // await fulfillOutstandingOrders(collateralBalance);
     await sellGoodEventPositions();
-    await Promise.all([buyCryptoEvents(), cancelCryptoStaleOrders()]);
-    await sellCryptoPositions();
-    await stopLossSeller();
-    await Promise.all([buyCryptoEvents(MarketSide.No), cancelCryptoStaleOrders(MarketSide.No)]);
-    await sellCryptoPositions();
-    await stopLossSeller(MarketSide.No);
+    await Promise.all([buyCryptoEvents(), buyCryptoEvents(MarketSide.No), cancelCryptoStaleOrders(), cancelCryptoStaleOrders(MarketSide.No)]);
+    await Promise.all([sellCryptoPositions(), stopLossSeller(), stopLossSeller(MarketSide.No)]);
     // Temporarily disabled sports orders since it's hard to deal with the 3 market order fulfillment.
     // ================================================================
     // const result = await findAndAnalyzeArbitrage(availableCollateral);
