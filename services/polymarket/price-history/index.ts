@@ -292,7 +292,7 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
     const upswingRatio = totalSwings > 0 ? info.totalUpswings / totalSwings : 0.5;
 
     // Calculate upside deviation from fresh price history
-    const startDate = subHours(new Date(), 1);
+    const startDate = subHours(new Date(), 6);
     const endDate = new Date();
     const priceHistoryResponse = await getPriceHistory(market, startDate, endDate);
     const priceChanges = collectPriceChanges(priceHistoryResponse.history);
@@ -367,7 +367,7 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
     score = Math.max(0, Math.min(100, score));
 
     // Decision threshold: score >= 60 is a buy
-    const shouldBuy = score >= 60;
+    const shouldBuy = score >= 55;
 
     if (shouldBuy) {
       reasons.unshift('✅ BUY SIGNAL');
