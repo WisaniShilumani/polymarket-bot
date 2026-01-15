@@ -372,8 +372,8 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
     // Clamp score to 0-100
     score = Math.max(0, Math.min(100, score));
 
-    // Decision threshold: score >= 60 is a buy
-    const shouldBuy = score >= 55 && !isTooCloseToATH;
+    // Decision threshold: score >= 65 is a buy
+    const shouldBuy = score >= 65 && !isTooCloseToATH;
 
     if (shouldBuy) {
       reasons.unshift('✅ BUY SIGNAL');
