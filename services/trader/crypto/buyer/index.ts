@@ -29,9 +29,9 @@ interface IMarketWithOrder extends PolymarketMarket {
   useMarketOrder: boolean;
 }
 
-const getPositionAndOrderSize = (conditionId: string, positions: UserPosition[], orders: OpenOrder[]) => {
+const getPositionAndOrderSize = (conditionId: string, positions: UserPosition[], orders: OpenOrder[], marketSide: MarketSide) => {
   const position = positions.find((p) => p.conditionId === conditionId);
-  const order = orders.find((o) => o.market === conditionId && o.side === Side.BUY && o.outcome === 'Yes');
+  const order = orders.find((o) => o.market === conditionId && o.side === Side.BUY && o.outcome === marketSide);
   const totalSize = Number(position?.size || 0) + Number(order?.original_size || 0) - Number(order?.size_matched || 0);
   return {
     totalSize,
@@ -61,7 +61,7 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
       if (!shouldBuy) continue;
       if (market.spread >= 0.05) continue;
       if (outcomePrice + 0.01 >= maxPrice) continue;
-      const { totalSize, existingOrderPrice } = getPositionAndOrderSize(market.conditionId, positions, orders);
+      const { totalSize, existingOrderPrice } = getPositionAndOrderSize(market.conditionId, positions, orders, marketSide);
       const maxShares = calculateMaxShares(collateralBalance);
       const divisor = 100 / maxShares;
       const maxSizeForMarket = Math.round(score / divisor);
