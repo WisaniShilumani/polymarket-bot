@@ -9,7 +9,7 @@ import { MarketSide } from '../../../../common/enums';
 
 const STOP_LOSS_THRESHOLD = 0.05; // Exit if price drops 15 cents below avgPrice
 
-export const stopLossSeller = async () => {
+export const stopLossSeller = async (marketSide: MarketSide = MarketSide.Yes) => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
   const positionsByEventIdMap = new Map<string, UserPosition[]>();
   positions.forEach((position) => {
@@ -32,7 +32,7 @@ export const stopLossSeller = async () => {
       const currentOrder = orders.find((o) => o.market === position.conditionId && o.side === Side.SELL);
       const market = eventData.markets.find((m) => m.conditionId === position.conditionId);
       if (!market) continue;
-      const currentPrice = getOutcomePrice(market, MarketSide.Yes);
+      const currentPrice = getOutcomePrice(market, marketSide);
       if (currentOrder && Number(currentOrder?.price || 0) <= currentPrice) {
         console.log(`Current order price is less than current price, skipping`);
         continue;

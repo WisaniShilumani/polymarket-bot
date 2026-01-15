@@ -38,7 +38,8 @@ const getPositionAndOrderSize = (conditionId: string, positions: UserPosition[],
     existingOrderPrice: Number(order?.price || 0),
   };
 };
-export const buyCryptoEvents = async () => {
+export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) => {
+  const clobTokenIndex = marketSide === MarketSide.Yes ? 0 : 1;
   const [cryptoEvents, positions, orders, collateralBalance] = await Promise.all([
     getAllCryptoEvents(),
     getUserPositions(),
@@ -50,18 +51,18 @@ export const buyCryptoEvents = async () => {
   for (const event of cryptoEvents) {
     for (const market of event.markets) {
       if (market.closed) continue;
-      const yesOutcomePrice = getOutcomePrice(market, MarketSide.Yes);
-      const tokenId = JSON.parse(market.clobTokenIds as unknown as string)[0];
+      const outcomePrice = getOutcomePrice(market, marketSide);
+      const tokenId = JSON.parse(market.clobTokenIds as unknown as string)[clobTokenIndex];
       if (market.volumeNum < MIN_VOLUME) continue;
-      const isInPriceRange = yesOutcomePrice > MIN_PRICE && yesOutcomePrice < MAX_PRICE;
+      const isInPriceRange = outcomePrice > MIN_PRICE && outcomePrice < MAX_PRICE;
       if (!isInPriceRange) continue;
       const { shouldBuy, score, maxPrice } = await evaluateBuySignal(tokenId);
       console.log(market.question, 'Should buy', shouldBuy, score);
       if (!shouldBuy) continue;
       console.log('Spread', market.spread);
       if (market.spread >= 0.05) continue;
-      console.log('Max price', maxPrice, yesOutcomePrice + 0.01);
-      if (yesOutcomePrice + 0.01 >= maxPrice) continue;
+      console.log('Max price', maxPrice, outcomePrice + 0.01);
+      if (outcomePrice + 0.01 >= maxPrice) continue;
       const { totalSize, existingOrderPrice } = getPositionAndOrderSize(market.conditionId, positions, orders);
       const maxShares = calculateMaxShares(collateralBalance);
       const divisor = 100 / maxShares;
@@ -75,13 +76,13 @@ export const buyCryptoEvents = async () => {
         existingOrderPrice,
         useMarketOrder: market.spread <= 0.01,
       });
-      logger.progress(`[score=${score}] Buying ${normalizedSize} shares of ${market.question} at ${yesOutcomePrice}`);
+      logger.progress(`[score=${score}] Buying ${normalizedSize} shares of ${market.question} at ${outcomePrice}`);
     }
   }
 
   const ordersToPlace: OrderParams[] = relevantMarkets.map((market) => ({
-    tokenId: JSON.parse(market.clobTokenIds as unknown as string)[0],
-    price: market.existingOrderPrice || getOutcomePrice(market, MarketSide.Yes), // buy at exact price so we don't miss out on opportunities // or midpoint for efficiency?
+    tokenId: JSON.parse(market.clobTokenIds as unknown as string)[clobTokenIndex],
+    price: market.existingOrderPrice || getOutcomePrice(market, marketSide), // buy at exact price so we don't miss out on opportunities // or midpoint for efficiency?
     size: market.size,
     side: Side.BUY,
     useMarketOrder: market.useMarketOrder,

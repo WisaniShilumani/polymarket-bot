@@ -6,7 +6,7 @@ import { getEvent } from '../../../polymarket/events';
 
 export const sellCryptoPositions = async () => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
-  const openOrderMarketIds = new Set(orders.filter((o) => o.outcome === 'Yes' && o.side === Side.SELL).map((o) => o.market));
+  const openOrderMarketIds = new Set(orders.filter((o) => o.side === Side.SELL).map((o) => o.market));
   const positionsByEventIdMap = new Map<string, UserPosition[]>();
   positions.forEach((position) => {
     positionsByEventIdMap.set(position.eventId, [...(positionsByEventIdMap.get(position.eventId) || []), position]);

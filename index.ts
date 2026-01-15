@@ -13,6 +13,7 @@ import { buyCryptoEvents } from './services/trader/crypto/buyer';
 import { sellCryptoPositions } from './services/trader/crypto/seller';
 import { cancelCryptoStaleOrders } from './services/trader/crypto/order-canceller';
 import { stopLossSeller } from './services/trader/crypto/stop-loss-seller';
+import { MarketSide } from './common/enums';
 
 logger.info('Starting Polymarket Arbitrage Detection Bot...');
 
@@ -30,8 +31,12 @@ async function main() {
     const collateralBalance = await getAccountCollateralBalance();
     await fulfillOutstandingOrders(collateralBalance);
     await sellGoodEventPositions();
+    logger.progress('Running YES strategy...');
     await Promise.all([buyCryptoEvents(), sellCryptoPositions(), cancelCryptoStaleOrders()]);
     await stopLossSeller();
+    logger.progress('Running NO strategy...');
+    await Promise.all([buyCryptoEvents(MarketSide.No), cancelCryptoStaleOrders(MarketSide.No)]);
+    await stopLossSeller(MarketSide.No);
     // Temporarily disabled sports orders since it's hard to deal with the 3 market order fulfillment.
     // ================================================================
     // const result = await findAndAnalyzeArbitrage(availableCollateral);

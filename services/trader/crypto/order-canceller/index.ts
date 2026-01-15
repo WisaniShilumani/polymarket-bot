@@ -8,7 +8,7 @@ import { getOutcomePrice } from '../../../../utils/prices';
 import { MarketSide } from '../../../../common/enums';
 import { getMarketByAssetId } from '../../../polymarket/markets';
 
-export const cancelCryptoStaleOrders = async () => {
+export const cancelCryptoStaleOrders = async (marketSide: MarketSide = MarketSide.Yes) => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
   const unmatchedOrders = orders.filter((order) => !positions.some((position) => position.asset === order.asset_id));
   const positionsByEventIdMap: Record<string, UserPosition[]> = {};
@@ -28,7 +28,7 @@ export const cancelCryptoStaleOrders = async () => {
     const existingMarketPositions = positions?.filter((p) => p.conditionId === order.market); // TODO - should we check on condition id instead?
     if (existingMarketPositions?.length) continue;
     const minutesSinceCreation = Math.abs(differenceInMinutes(new Date(), new Date(order.created_at * 1000)));
-    const priceDifference = getOutcomePrice(market, MarketSide.Yes) - Number(order.price);
+    const priceDifference = getOutcomePrice(market, marketSide) - Number(order.price);
     if (minutesSinceCreation > 5 || priceDifference >= 0.03) {
       await cancelOrder(order.id);
       console.log(`Cancelled BUY crypto order ${market.question} at $${order.price} @ ${Number(order.original_size) - Number(order.size_matched)} shares`);
