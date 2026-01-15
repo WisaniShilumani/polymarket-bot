@@ -48,11 +48,9 @@ export const getAllCryptoEvents = async (): Promise<PolymarketEvent[]> => {
   let hasMoreEvents = true;
   while (hasMoreEvents) {
     try {
-      logger.progress(`Scanning events ${offset} to ${offset + limit}...`);
       const events = await getCryptoEvents({ offset, limit, closed: false });
       allEvents.push(...events);
       if (events.length === 0) {
-        logger.info('No more events to scan.');
         hasMoreEvents = false;
         break;
       }
@@ -63,5 +61,6 @@ export const getAllCryptoEvents = async (): Promise<PolymarketEvent[]> => {
       throw error;
     }
   }
+  logger.success(`Found ${allEvents.length} crypto events`);
   return allEvents;
 };

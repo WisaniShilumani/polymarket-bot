@@ -25,7 +25,7 @@ export const buildEventsUrl = (options: GetEventsOptions = {}) => {
 };
 
 export const buildCryptoEventsUrl = (options: GetEventsOptions = {}) => {
-  const minEndDate = addDays(new Date(), 7).toISOString();
+  const minEndDate = addDays(new Date(), 5).toISOString();
   const maxEndDate = addDays(new Date(), 90).toISOString();
   const startDate = subMonths(new Date(), 12).toISOString();
   const { limit = 500, offset = 0, closed = false } = options;

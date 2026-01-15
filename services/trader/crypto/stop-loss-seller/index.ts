@@ -10,7 +10,6 @@ import { MarketSide } from '../../../../common/enums';
 const STOP_LOSS_THRESHOLD = 0.05; // Exit if price drops 15 cents below avgPrice
 
 export const stopLossSeller = async (marketSide: MarketSide = MarketSide.Yes) => {
-  logger.info(`Running stop loss seller for ${marketSide}...`);
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);
   const positionsByEventIdMap = new Map<string, UserPosition[]>();
   positions.forEach((position) => {
