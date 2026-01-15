@@ -67,6 +67,7 @@ export interface PolymarketMarket {
   sportsMarketType?: string;
   spread: number;
   endDate: string;
+  feesEnabled: boolean;
 }
 
 export interface PolymarketPriceHistoryDataPoint {
