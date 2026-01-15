@@ -1,14 +1,10 @@
 import 'dotenv/config';
 import './server';
-import { findAndAnalyzeArbitrage } from './services/arbitrage';
 import logger from './utils/logger';
 import { getAccountCollateralBalance } from './services/polymarket/account-balance';
-import { getOpenOrders } from './services/polymarket/orders';
 import { loadCacheFromFile } from './services/openai';
-import { DEMO_MODE } from './config';
 import { sellGoodEventPositions } from './services/order-management/positions-seller';
 import { fulfillOutstandingOrders } from './services/order-management/order-fulfiller';
-import { cancelStaleIndividualOrders } from './services/order-management/order-canceller';
 import { buyCryptoEvents } from './services/trader/crypto/buyer';
 import { sellCryptoPositions } from './services/trader/crypto/seller';
 import { cancelCryptoStaleOrders } from './services/trader/crypto/order-canceller';
