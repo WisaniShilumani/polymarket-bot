@@ -1,37 +1,11 @@
-import { Side, type Trade } from '@polymarket/clob-client';
-import { getTrades } from '../../polymarket/trade-history';
-import { getMarketByAssetId } from '../../polymarket/markets';
+import { Side } from '@polymarket/clob-client';
+import { getTradesForUser } from '../../polymarket/trade-history';
 import logger from '../../../utils/logger';
 import { POLYMARKET_FUNDER } from '../../../config';
+import type { TradeHistoryItem } from '../../../common/types';
 
-// User's wallet address (case-insensitive comparison)
-const USER_ADDRESS = POLYMARKET_FUNDER.toLowerCase();
-
-/**
- * Safely parse a date from various formats
- */
-function parseTradeDate(dateValue: string | number | undefined): Date {
-  if (!dateValue) return new Date();
-
-  // If it's a number or numeric string (unix timestamp)
-  const numValue = Number(dateValue);
-  if (!isNaN(numValue)) {
-    // Check if it's in seconds (10 digits) or milliseconds (13 digits)
-    if (numValue < 1e12) {
-      return new Date(numValue * 1000);
-    }
-    return new Date(numValue);
-  }
-
-  // Try parsing as ISO string
-  const parsed = new Date(dateValue);
-  if (!isNaN(parsed.getTime())) {
-    return parsed;
-  }
-
-  // Fallback to current date
-  return new Date();
-}
+// User's wallet address
+const USER_ADDRESS = POLYMARKET_FUNDER;
 
 export interface TradeReport {
   id: string;
@@ -39,14 +13,12 @@ export interface TradeReport {
   image: string;
   executedAt: string;
   shares: number;
-  orderPrice: number; // Price from getOrder() - the limit price you set
-  matchedPrice: number; // Price from trade execution - what it actually filled at
+  orderPrice: number;
+  matchedPrice: number;
   side: Side;
   outcome: string;
-  traderSide: 'TAKER' | 'MAKER';
-  pnl: number; // (matchedPrice - orderPrice) * shares for SELL, (orderPrice - matchedPrice) * shares for BUY
+  pnl: number;
   percentPnL: number;
-  marketResolved: boolean;
   marketSlug: string;
 }
 
@@ -90,6 +62,11 @@ export interface PriceRangeStats {
   avgPnL: number;
 }
 
+export interface PriceRangeStatsByOutcome {
+  yes: PriceRangeStats[];
+  no: PriceRangeStats[];
+}
+
 export interface TradesReportSummary {
   trades: TradeReport[];
   totalRealizedPnL: number;
@@ -103,235 +80,49 @@ export interface TradesReportSummary {
   topWinnersByMarket: MarketStats[];
   topLosersByMarket: MarketStats[];
   outcomeStats: OutcomeStats[];
-  priceRangeStats: PriceRangeStats[];
+  priceRangeStats: PriceRangeStatsByOutcome;
+}
+
+interface TradeHistoryItemWithPnl extends TradeHistoryItem {
+  pnl: number;
+  averagePrice?: number;
 }
 
 /**
- * User's trade with their specific portion extracted
+ * Converts a TradeHistoryItem to a TradeReport
  */
-interface UserTrade {
-  trade: Trade;
-  userPortion: {
-    shares: number;
-    price: number; // The limit price from the order (maker_orders[].price)
-    side: Side;
-    outcome: string;
+function toTradeReport(trade: TradeHistoryItemWithPnl): TradeReport {
+  const averagePrice = trade.averagePrice ?? 0;
+  const percentPnL = averagePrice > 0 ? ((trade.price - averagePrice) / averagePrice) * 100 : 0;
+
+  return {
+    id: trade.transactionHash,
+    question: trade.title,
+    image: trade.icon,
+    executedAt: new Date(trade.timestamp * 1000).toISOString(),
+    shares: trade.size,
+    orderPrice: trade.price,
+    matchedPrice: averagePrice,
+    side: trade.side === 'BUY' ? Side.BUY : Side.SELL,
+    outcome: trade.outcome,
+    pnl: trade.pnl,
+    percentPnL,
+    marketSlug: trade.eventSlug,
   };
 }
 
 /**
- * A buy lot representing shares purchased at a specific price
- * Used for FIFO cost basis tracking
- */
-interface BuyLot {
-  shares: number;
-  price: number;
-  tradeId: string;
-  matchTime: number;
-}
-
-/**
- * Extract the user's portions from a trade
- * Returns an array because user might have multiple orders in maker_orders
- */
-function extractUserPortions(trade: Trade): UserTrade[] {
-  const makerOrders = (trade as any).maker_orders || [];
-  const results: UserTrade[] = [];
-
-  // Check if user is the taker (maker_address is the order initiator)
-  // When user is taker, they are BUYING
-  const isUserTaker = (trade as any).maker_address?.toLowerCase() === USER_ADDRESS;
-
-  if (isUserTaker) {
-    results.push({
-      trade,
-      userPortion: {
-        shares: Number(trade.size),
-        price: Number(trade.price),
-        side: Side.BUY, // Taker = buyer
-        outcome: trade.outcome || 'Yes',
-      },
-    });
-  }
-
-  // Check if user appears in maker_orders (user was a maker)
-  // Maker = always SELLER
-  // Each maker_order is a separate trade entry - don't group them
-  for (const order of makerOrders) {
-    if (order.maker_address?.toLowerCase() === USER_ADDRESS) {
-      results.push({
-        trade,
-        userPortion: {
-          shares: Number(order.matched_amount),
-          price: Number(order.price),
-          side: Side.SELL, // Maker = seller
-          outcome: order.outcome || trade.outcome || 'Yes',
-        },
-      });
-    }
-  }
-
-  return results;
-}
-
-/**
- * Fetches all trades and calculates P&L for each
- * For SELL trades: P&L = (sell price - buy price) × shares
- * Buy price comes from the nearest previous BUY trades for the same market+outcome (FIFO)
+ * Fetches all trades and calculates P&L for each using the getTradesForUser service
  */
 export const getTradesReport = async (): Promise<TradesReportSummary> => {
-  const allTrades = await getTrades();
-  console.log(JSON.stringify(allTrades.slice(0, 3), null, 2));
+  const trades = await getTradesForUser();
+  logger.info(`Found ${trades.length} trades for user ${USER_ADDRESS}`);
 
-  // Extract user portions from trades
-  const userTrades: UserTrade[] = allTrades.flatMap((trade) => extractUserPortions(trade));
-  logger.info(`Found ${userTrades.length} user positions (from ${allTrades.length} total trades)`);
-
-  // Sort by time (oldest first) to process trades chronologically
-  const sortedTrades = [...userTrades].sort((a, b) => parseTradeDate(a.trade.match_time).getTime() - parseTradeDate(b.trade.match_time).getTime());
-
-  // Create index mapping for sorted trades back to original userTrades
-  const sortedIndexMap = new Map<UserTrade, number>();
-  sortedTrades.forEach((ut, idx) => sortedIndexMap.set(ut, idx));
-
-  // FIFO cost basis tracking: Map of market+outcome -> array of buy lots (oldest first)
-  const buyLots = new Map<string, BuyLot[]>();
-
-  // Track P&L calculations by sorted index
-  const pnlResults: Array<{
-    pnl: number;
-    avgBuyPrice: number | null;
-    costBasisDetails: Array<{ shares: number; buyPrice: number }>;
-  }> = new Array(sortedTrades.length);
-
-  // First pass: Build buy lots and calculate P&L for sells using FIFO
-  // Key by market + outcome (not asset_id) since asset_ids can differ for maker vs taker
-  for (let i = 0; i < sortedTrades.length; i++) {
-    const { trade, userPortion } = sortedTrades[i]!;
-    const positionKey = `${trade.market}-${userPortion.outcome}`;
-    const matchTime = parseTradeDate(trade.match_time).getTime();
-
-    if (userPortion.side === Side.BUY) {
-      // Add to buy lots for this position
-      const lots = buyLots.get(positionKey) || [];
-      lots.push({
-        shares: userPortion.shares,
-        price: userPortion.price,
-        tradeId: trade.id,
-        matchTime,
-      });
-      buyLots.set(positionKey, lots);
-
-      // BUY trades: no realized P&L yet (only realized on SELL)
-      pnlResults[i] = {
-        pnl: 0,
-        avgBuyPrice: null,
-        costBasisDetails: [],
-      };
-    } else {
-      // SELL trade: consume shares from oldest buy lots (FIFO)
-      const lots = buyLots.get(positionKey) || [];
-      let sharesToSell = userPortion.shares;
-      let totalCost = 0;
-      const costBasisDetails: Array<{ shares: number; buyPrice: number }> = [];
-
-      // Consume from oldest lots first
-      while (sharesToSell > 0 && lots.length > 0) {
-        const oldestLot = lots[0];
-        if (!oldestLot) break;
-
-        const sharesToTake = Math.min(sharesToSell, oldestLot.shares);
-        totalCost += sharesToTake * oldestLot.price;
-        costBasisDetails.push({ shares: sharesToTake, buyPrice: oldestLot.price });
-
-        oldestLot.shares -= sharesToTake;
-        sharesToSell -= sharesToTake;
-
-        // Remove depleted lot
-        if (oldestLot.shares <= 0) {
-          lots.shift();
-        }
-      }
-
-      const sharesSold = userPortion.shares - sharesToSell;
-      let pnl: number;
-      let avgBuyPrice: number | null = null;
-
-      if (sharesSold > 0) {
-        avgBuyPrice = totalCost / sharesSold;
-        // P&L only for the portion with cost basis
-        pnl = (userPortion.price - avgBuyPrice) * sharesSold;
-        // Shares without cost basis don't contribute to P&L (we don't know the buy price)
-        if (sharesToSell > 0) {
-          logger.warn(`SELL trade ${trade.id}: ${sharesToSell.toFixed(2)} shares sold without matching BUY for ${positionKey}`);
-        }
-      } else {
-        // No matching buy lots found at all - can't calculate P&L
-        pnl = 0;
-        logger.warn(`SELL trade ${trade.id}: No cost basis found for ${userPortion.shares} shares in ${positionKey}`);
-      }
-
-      pnlResults[i] = { pnl, avgBuyPrice, costBasisDetails };
-    }
-  }
-
-  // Fetch market info (for names/images only)
-  const uniqueMarketIds = [...new Set(userTrades.map((ut) => ut.trade.market))];
-  const marketCache = new Map<string, any>();
-  const batchSize = 5;
-  for (let i = 0; i < uniqueMarketIds.length; i += batchSize) {
-    const batch = uniqueMarketIds.slice(i, i + batchSize);
-    const batchPromises = batch.map(async (marketId) => {
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        const market = await getMarketByAssetId(marketId);
-        return { marketId, market };
-      } catch {
-        return null;
-      }
-    });
-    const results = await Promise.all(batchPromises);
-    for (const result of results) {
-      if (result) marketCache.set(result.marketId, result.market);
-    }
-  }
-
-  // Build trade reports with calculated P&L
-  const tradeReports: TradeReport[] = [];
-  for (const userTrade of sortedTrades) {
-    const { trade, userPortion } = userTrade;
-    const market = marketCache.get(trade.market);
-    if (!market) continue;
-
-    const executionPrice = userPortion.price;
-    const shares = userPortion.shares;
-
-    const sortedIdx = sortedIndexMap.get(userTrade) ?? 0;
-    const pnlResult = pnlResults[sortedIdx] || { pnl: 0, avgBuyPrice: null, costBasisDetails: [] };
-    const { pnl, avgBuyPrice } = pnlResult;
-
-    const percentPnL = avgBuyPrice && avgBuyPrice > 0 ? ((executionPrice - avgBuyPrice) / avgBuyPrice) * 100 : 0;
-
-    tradeReports.push({
-      id: trade.id,
-      question: market.question || 'Unknown Market',
-      image: market.image || '',
-      executedAt: parseTradeDate(trade.match_time).toISOString(),
-      shares,
-      orderPrice: executionPrice,
-      matchedPrice: avgBuyPrice ?? 0, // Cost basis (0 if unknown)
-      side: userPortion.side,
-      outcome: userPortion.outcome,
-      traderSide: trade.trader_side,
-      pnl,
-      percentPnL,
-      marketResolved: market.closed || market.resolved || false,
-      marketSlug: market.market_slug || market.slug || '',
-    });
-  }
+  // Convert to TradeReport format
+  const tradeReports = trades.map((trade) => toTradeReport(trade as TradeHistoryItemWithPnl));
 
   // Sort by execution time (most recent first)
-  tradeReports.sort((a, b) => parseTradeDate(b.executedAt).getTime() - parseTradeDate(a.executedAt).getTime());
+  tradeReports.sort((a, b) => new Date(b.executedAt).getTime() - new Date(a.executedAt).getTime());
 
   const summary = calculateSummary(tradeReports);
   return { trades: tradeReports, ...summary };
@@ -514,9 +305,8 @@ function generateOutcomeStats(trades: TradeReport[]): OutcomeStats[] {
   return [yesStats, noStats];
 }
 
-function generatePriceRangeStats(trades: TradeReport[]): PriceRangeStats[] {
-  // Define price ranges (in cents: 0-10, 10-20, ..., 90-100)
-  const ranges: PriceRangeStats[] = [
+function createEmptyRanges(): PriceRangeStats[] {
+  return [
     { rangeLabel: '0-10¢', minPrice: 0, maxPrice: 0.1, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
     { rangeLabel: '10-20¢', minPrice: 0.1, maxPrice: 0.2, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
     { rangeLabel: '20-30¢', minPrice: 0.2, maxPrice: 0.3, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
@@ -528,7 +318,9 @@ function generatePriceRangeStats(trades: TradeReport[]): PriceRangeStats[] {
     { rangeLabel: '80-90¢', minPrice: 0.8, maxPrice: 0.9, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
     { rangeLabel: '90-100¢', minPrice: 0.9, maxPrice: 1.0, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
   ];
+}
 
+function populateRangeStats(ranges: PriceRangeStats[], trades: TradeReport[]): void {
   for (const trade of trades) {
     const price = trade.orderPrice;
 
@@ -569,7 +361,20 @@ function generatePriceRangeStats(trades: TradeReport[]): PriceRangeStats[] {
       range.avgPnL = range.totalPnL / range.tradeCount;
     }
   }
+}
 
-  // Only return ranges that have trades
-  return ranges.filter((r) => r.tradeCount > 0);
+function generatePriceRangeStats(trades: TradeReport[]): PriceRangeStatsByOutcome {
+  const yesTrades = trades.filter((t) => t.outcome === 'Yes');
+  const noTrades = trades.filter((t) => t.outcome === 'No');
+
+  const yesRanges = createEmptyRanges();
+  const noRanges = createEmptyRanges();
+
+  populateRangeStats(yesRanges, yesTrades);
+  populateRangeStats(noRanges, noTrades);
+
+  return {
+    yes: yesRanges.filter((r) => r.tradeCount > 0),
+    no: noRanges.filter((r) => r.tradeCount > 0),
+  };
 }

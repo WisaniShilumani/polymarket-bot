@@ -1,6 +1,6 @@
 import { Side } from '@polymarket/clob-client';
 import { formatDistanceToNow, format } from 'date-fns';
-import type { TradesReportSummary, TradeReport, MarketStats, OutcomeStats, PriceRangeStats } from '../services/reporting/trades';
+import type { TradesReportSummary, TradeReport, MarketStats, OutcomeStats, PriceRangeStats, PriceRangeStatsByOutcome } from '../services/reporting/trades';
 
 export function generateTradesHTML(report: TradesReportSummary): string {
   const formatPriceCents = (price: number) => Math.round(price * 100);
@@ -49,10 +49,6 @@ export function generateTradesHTML(report: TradesReportSummary): string {
                 <span class="trade-badge" style="background: ${outcomeColor}15; color: ${outcomeColor};">
                   ${trade.outcome}
                 </span>
-                <span class="trade-badge trade-badge-neutral">
-                  ${trade.traderSide === 'TAKER' ? 'Taker' : 'Maker'}
-                </span>
-                ${trade.marketResolved ? '<span class="trade-badge" style="background: #8b5cf615; color: #8b5cf6;">RESOLVED</span>' : ''}
               </div>
             </div>
           </div>
@@ -203,13 +199,10 @@ export function generateTradesHTML(report: TradesReportSummary): string {
     `;
   };
 
-  const renderPriceRangeStats = (priceRanges: PriceRangeStats[], formatMoneyFn: (n: number) => string) => {
-    if (priceRanges.length === 0) {
+  const renderPriceRangeStats = (priceRangesByOutcome: PriceRangeStatsByOutcome, formatMoneyFn: (n: number) => string) => {
+    if (priceRangesByOutcome.yes.length === 0 && priceRangesByOutcome.no.length === 0) {
       return '';
     }
-
-    // Find the max win rate for scaling the bars
-    const maxWinRate = Math.max(...priceRanges.map((r) => r.winRate), 1);
 
     const getBarColor = (winRate: number) => {
       if (winRate >= 60) return 'linear-gradient(90deg, #10b981, #059669)';
@@ -218,7 +211,7 @@ export function generateTradesHTML(report: TradesReportSummary): string {
     };
 
     const renderPriceRangeItem = (range: PriceRangeStats) => {
-      const barWidth = (range.winRate / 100) * 100; // Scale to percentage
+      const barWidth = (range.winRate / 100) * 100;
       const pnlColor = range.totalPnL >= 0 ? '#10b981' : '#ef4444';
 
       return `
@@ -247,6 +240,13 @@ export function generateTradesHTML(report: TradesReportSummary): string {
       `;
     };
 
+    const renderOutcomeSection = (ranges: PriceRangeStats[], outcome: 'Yes' | 'No') => {
+      if (ranges.length === 0) {
+        return `<div class="price-range-empty">No ${outcome} trades in any price range</div>`;
+      }
+      return `<div class="price-range-list">${ranges.map(renderPriceRangeItem).join('')}</div>`;
+    };
+
     return `
       <div class="price-range-section">
         <div class="price-range-header">
@@ -255,8 +255,21 @@ export function generateTradesHTML(report: TradesReportSummary): string {
             <span>Win Rate by Entry Price</span>
           </div>
         </div>
-        <div class="price-range-list">
-          ${priceRanges.map(renderPriceRangeItem).join('')}
+        <div class="price-range-outcome-grid">
+          <div class="price-range-outcome-card">
+            <div class="price-range-outcome-header yes">
+              <span>✓</span>
+              <span>Yes Bets</span>
+            </div>
+            ${renderOutcomeSection(priceRangesByOutcome.yes, 'Yes')}
+          </div>
+          <div class="price-range-outcome-card">
+            <div class="price-range-outcome-header no">
+              <span>✗</span>
+              <span>No Bets</span>
+            </div>
+            ${renderOutcomeSection(priceRangesByOutcome.no, 'No')}
+          </div>
         </div>
       </div>
     `;
@@ -623,11 +636,6 @@ export function generateTradesHTML(report: TradesReportSummary): string {
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.5px;
-        }
-        
-        .trade-badge-neutral {
-          background: var(--bg-tertiary);
-          color: var(--text-secondary);
         }
         
         .trade-shares {
@@ -1019,6 +1027,50 @@ export function generateTradesHTML(report: TradesReportSummary): string {
           font-size: 10px;
           color: var(--text-muted);
           text-transform: uppercase;
+        }
+        
+        .price-range-outcome-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 24px;
+        }
+        
+        .price-range-outcome-card {
+          background: var(--bg-tertiary);
+          border-radius: 12px;
+          padding: 16px;
+        }
+        
+        .price-range-outcome-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid var(--border-color);
+        }
+        
+        .price-range-outcome-header.yes {
+          color: var(--accent-green);
+        }
+        
+        .price-range-outcome-header.no {
+          color: var(--accent-red);
+        }
+        
+        .price-range-empty {
+          padding: 24px;
+          text-align: center;
+          color: var(--text-muted);
+          font-size: 13px;
+        }
+        
+        @media (max-width: 1024px) {
+          .price-range-outcome-grid {
+            grid-template-columns: 1fr;
+          }
         }
         
         @media (max-width: 768px) {

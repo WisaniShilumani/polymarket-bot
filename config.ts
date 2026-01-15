@@ -5,6 +5,7 @@ export const POLYMARKET_PRIVATE_KEY = process.env.POLYMARKET_PRIVATE_KEY || '';
 export const ARBITRAGE_DETECTION_BOT_URL = process.env.ARBITRAGE_DETECTION_BOT_URL || '';
 export const POLYMARKET_API_URL = process.env.POLYMARKET_API_URL || 'https://gamma-api.polymarket.com';
 export const POLYMARKET_CLOB_URL = process.env.POLYMARKET_CLOB_URL || 'https://clob.polymarket.com';
+export const POLYMARKET_DATA_API_URL = 'https://data-api.polymarket.com';
 // Order configuration
 export const ORDERS_ENABLED = process.env.DEMO_MODE !== 'true';
 export const DEMO_MODE = process.env.DEMO_MODE === 'true';

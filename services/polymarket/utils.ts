@@ -1,6 +1,6 @@
 import { addDays, addMinutes, subDays, subMonths } from 'date-fns';
 import type { GetEventsOptions, GetMarketsOptions } from '../../common/types';
-import { POLYMARKET_API_URL, POLYMARKET_CLOB_URL } from '../../config';
+import { POLYMARKET_API_URL, POLYMARKET_CLOB_URL, POLYMARKET_DATA_API_URL } from '../../config';
 
 export const buildEventsUrl = (options: GetEventsOptions = {}) => {
   const minEndDate = addMinutes(new Date(), 30).toISOString();
@@ -119,5 +119,20 @@ export const buildPriceHistoryUrl = (market: string, startTs: Date, endTs: Date)
     endTs: Math.round(endTs.getTime() / 1000).toString(),
   });
   const url = `${POLYMARKET_CLOB_URL}/prices-history?${params.toString()}`;
+  return url;
+};
+
+export interface GetTradesOptions {
+  limit?: number;
+  offset?: number;
+}
+export const buildTradesUrl = (userAddress: string, options: GetTradesOptions = {}) => {
+  const { limit = 100, offset = 0 } = options;
+  const params = new URLSearchParams({
+    user: userAddress,
+    limit: limit.toString(),
+    offset: offset.toString(),
+  });
+  const url = `${POLYMARKET_DATA_API_URL}/trades?${params.toString()}`;
   return url;
 };
