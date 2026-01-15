@@ -55,6 +55,7 @@ export const stopLossSeller = async () => {
         price: currentPrice,
         size: position.size,
         side: Side.SELL,
+        useMarketOrder: true,
       });
     }
   }

@@ -31,7 +31,7 @@ export const createOrder = async (params: OrderParams): Promise<OrderResult> => 
     const response = params.useMarketOrder
       ? await clobClient.createAndPostMarketOrder({
           tokenID: params.tokenId,
-          amount: params.size * params.price,
+          amount: side === Side.BUY ? params.size * params.price : params.size,
           side,
         })
       : await clobClient.createAndPostOrder({
