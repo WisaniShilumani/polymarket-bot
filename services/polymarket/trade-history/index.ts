@@ -1,4 +1,4 @@
-import { AssetType, type MarketTradeEvent, type Trade } from '@polymarket/clob-client';
+import { type Trade } from '@polymarket/clob-client';
 import { getClobClient } from '..';
 import logger from '../../../utils/logger';
 
@@ -10,7 +10,8 @@ export const getTrades = async (): Promise<Trade[]> => {
   try {
     const clobClient = await getClobClient();
     const trades = await clobClient.getTrades();
-    return trades;
+    const tradingStartDate = new Date('2026-01-14T10:00:00Z');
+    return trades.filter((trade) => new Date(+trade.match_time * 1000) > tradingStartDate && trade.status === 'CONFIRMED' && trade.side === 'SELL');
   } catch (error) {
     logger.error('Error fetching trades:', error);
     throw error;

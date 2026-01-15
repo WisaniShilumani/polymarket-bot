@@ -1,7 +1,9 @@
 import http from 'http';
 import logger from './utils/logger';
 import { getOrdersReport } from './services/reporting/orders';
+import { getTradesReport } from './services/reporting/trades';
 import { generateOrdersHTML } from './views/orders';
+import { generateTradesHTML } from './views/trades';
 
 // Start HTTP server for Elastic Beanstalk health checks
 const PORT = process.env.PORT || 8080;
@@ -16,11 +18,29 @@ const server = http.createServer((req, res) => {
       }),
     );
   } else if (req.url === '/orders') {
-    getOrdersReport().then((orders) => {
-      const html = generateOrdersHTML(orders);
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(html);
-    });
+    getOrdersReport()
+      .then((orders) => {
+        const html = generateOrdersHTML(orders);
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(html);
+      })
+      .catch((error) => {
+        logger.error('Error generating orders report:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to fetch orders' }));
+      });
+  } else if (req.url === '/trades') {
+    getTradesReport()
+      .then((report) => {
+        const html = generateTradesHTML(report);
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(html);
+      })
+      .catch((error) => {
+        logger.error('Error generating trades report:', error);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to fetch trades' }));
+      });
   } else {
     res.writeHead(404, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Not found' }));
