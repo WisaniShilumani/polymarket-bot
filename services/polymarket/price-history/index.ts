@@ -292,7 +292,7 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
     const upswingRatio = totalSwings > 0 ? info.totalUpswings / totalSwings : 0.5;
 
     // Calculate upside deviation from fresh price history
-    const startDate = subHours(new Date(), 6);
+    const startDate = subHours(new Date(), 1);
     const endDate = new Date();
     const priceHistoryResponse = await getPriceHistory(market, startDate, endDate);
     const priceChanges = collectPriceChanges(priceHistoryResponse.history);
