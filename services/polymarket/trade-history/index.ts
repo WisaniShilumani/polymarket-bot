@@ -6,6 +6,17 @@ import { buildTradesUrl, type GetTradesOptions } from '../utils';
 import type { TradeHistoryItem } from '../../../common/types';
 import { POLYMARKET_FUNDER } from '../../../config';
 
+export const getTrades = async (): Promise<Trade[]> => {
+  try {
+    const clobClient = await getClobClient();
+    const trades = await clobClient.getTrades();
+    return trades;
+  } catch (error) {
+    logger.error('Error fetching trades:', error);
+    throw error;
+  }
+};
+
 const getAllTrades = async (): Promise<TradeHistoryItem[]> => {
   try {
     let limit = 100;
@@ -35,7 +46,7 @@ export const getTradesForUser = async (): Promise<TradeHistoryItem[]> => {
 
     const sortedTrades = trades.sort((a, b) => b.timestamp - a.timestamp);
     const tradesByConditionIdMap = new Map<string, TradeHistoryItem[]>();
-    console.log(sortedTrades.filter((t) => t.side === 'SELL').slice(0, 9));
+    console.log(sortedTrades.filter((t) => t.side === 'BUY').slice(0, 9));
     for (const trade of sortedTrades) {
       const conditionId = trade.conditionId;
       if (!tradesByConditionIdMap.has(conditionId)) {
