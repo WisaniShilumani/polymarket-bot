@@ -17,7 +17,7 @@ const MIN_VOLUME = 5_000;
 const calculateMaxShares = (availableBalance: number) => {
   const averageAnticipatedScore = 60;
   const averagePrice = 0.5;
-  const anticipatedMarketCount = 8;
+  const anticipatedMarketCount = 5;
   const maxShares = (100 * availableBalance) / (averageAnticipatedScore * averagePrice * anticipatedMarketCount);
   return Math.round(maxShares);
 };
