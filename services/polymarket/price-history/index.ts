@@ -1,4 +1,4 @@
-import { subHours } from 'date-fns';
+import { subDays, subHours } from 'date-fns';
 import type { PolymarketPriceHistory, PolymarketPriceHistoryDataPoint } from '../../../common/types';
 import { http } from '../../../utils/http';
 import { logger } from '../../../utils/logger';
@@ -293,8 +293,14 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
 
     // Calculate upside deviation from fresh price history
     const startDate = subHours(new Date(), 6);
+    const athStartDate = subDays(new Date(), 3);
     const endDate = new Date();
     const priceHistoryResponse = await getPriceHistory(market, startDate, endDate);
+    const athPriceHistoryResponse = await getPriceHistory(market, athStartDate, endDate);
+    const athMaxPrice = Math.max(...athPriceHistoryResponse.history.map((dp) => dp.p));
+    const latestPrice = priceHistoryResponse.history[priceHistoryResponse.history.length - 1]!.p;
+    const distanceToATH = athMaxPrice - latestPrice;
+    const isTooCloseToATH = distanceToATH < 0.05;
     const priceChanges = collectPriceChanges(priceHistoryResponse.history);
     const upsideDeviation = calculateUpsideDeviation(priceChanges);
     const downsideDeviation = info.risk.downsideDeviation;
@@ -367,7 +373,7 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
     score = Math.max(0, Math.min(100, score));
 
     // Decision threshold: score >= 60 is a buy
-    const shouldBuy = score >= 55;
+    const shouldBuy = score >= 55 && !isTooCloseToATH;
 
     if (shouldBuy) {
       reasons.unshift('✅ BUY SIGNAL');
