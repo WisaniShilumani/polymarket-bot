@@ -24,7 +24,7 @@ export const cancelCryptoStaleOrders = async (marketSide: MarketSide = MarketSid
     const isCryptoEvent = market.tags?.includes('Crypto');
     if (!isCryptoEvent) continue;
     if (order.side !== Side.BUY) {
-      if (minutesSinceCreation > 45) {
+      if (minutesSinceCreation > 120) {
         await cancelOrder(order.id);
         console.log(`Cancelled SELL crypto order ${market.question} at $${order.price} @ ${Number(order.original_size) - Number(order.size_matched)} shares`);
         console.log(

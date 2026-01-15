@@ -78,7 +78,7 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
 
   const ordersToPlace: OrderParams[] = relevantMarkets.map((market) => ({
     tokenId: JSON.parse(market.clobTokenIds as unknown as string)[clobTokenIndex],
-    price: market.existingOrderPrice || getOutcomePrice(market, marketSide) - 0.009, // buy at exact price so we don't miss out on opportunities // or midpoint for efficiency?
+    price: market.existingOrderPrice || getOutcomePrice(market, marketSide) - 0.01, // we would rather delay purchases than buy at prices we cant sell
     size: market.size,
     side: Side.BUY,
   }));
