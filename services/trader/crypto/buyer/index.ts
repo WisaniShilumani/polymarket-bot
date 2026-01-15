@@ -17,7 +17,7 @@ const MIN_VOLUME = 10_000;
 const calculateMaxShares = (availableBalance: number) => {
   const averageAnticipatedScore = 60;
   const averagePrice = 0.5;
-  const anticipatedMarketCount = 12;
+  const anticipatedMarketCount = 8;
   const maxShares = (100 * availableBalance) / (averageAnticipatedScore * averagePrice * anticipatedMarketCount);
   return Math.round(maxShares);
 };
@@ -56,11 +56,13 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
       if (market.volumeNum < MIN_VOLUME) continue;
       const isInPriceRange = outcomePrice > MIN_PRICE && outcomePrice < MAX_PRICE;
       if (!isInPriceRange) continue;
+      if (market.spread > 0.01) continue;
+
       const { shouldBuy, score, maxPrice } = await evaluateBuySignal(tokenId);
+      if (outcomePrice + 0.01 >= maxPrice) continue;
       // console.log(market.question, score.toFixed(2));
       if (!shouldBuy) continue;
-      if (market.spread > 0.01) continue;
-      if (outcomePrice + 0.01 >= maxPrice) continue;
+
       const { totalSize, existingOrderPrice } = getPositionAndOrderSize(market.conditionId, positions, orders, marketSide);
       const maxShares = calculateMaxShares(collateralBalance);
       const divisor = 100 / maxShares;
