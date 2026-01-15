@@ -72,7 +72,7 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
         ...market,
         size: normalizedSize,
         existingOrderPrice,
-        useMarketOrder: market.spread <= 0.01,
+        useMarketOrder: market.spread <= 0.005,
       });
       logger.progress(`[score=${score}] Buying ${normalizedSize} shares of ${market.question} at ${outcomePrice}`);
     }
@@ -80,7 +80,7 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
 
   const ordersToPlace: OrderParams[] = relevantMarkets.map((market) => ({
     tokenId: JSON.parse(market.clobTokenIds as unknown as string)[clobTokenIndex],
-    price: market.existingOrderPrice || getOutcomePrice(market, marketSide), // buy at exact price so we don't miss out on opportunities // or midpoint for efficiency?
+    price: market.existingOrderPrice || getOutcomePrice(market, marketSide) - 0.004, // buy at exact price so we don't miss out on opportunities // or midpoint for efficiency?
     size: market.size,
     side: Side.BUY,
     useMarketOrder: market.useMarketOrder,
