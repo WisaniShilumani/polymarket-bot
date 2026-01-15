@@ -32,9 +32,11 @@ async function main() {
     const collateralBalance = await getAccountCollateralBalance();
     await fulfillOutstandingOrders(collateralBalance);
     await sellGoodEventPositions();
-    await Promise.all([buyCryptoEvents(), sellCryptoPositions(), cancelCryptoStaleOrders()]);
+    await Promise.all([buyCryptoEvents(), cancelCryptoStaleOrders()]);
+    await sellCryptoPositions();
     await stopLossSeller();
     await Promise.all([buyCryptoEvents(MarketSide.No), cancelCryptoStaleOrders(MarketSide.No)]);
+    await sellCryptoPositions();
     await stopLossSeller(MarketSide.No);
     // Temporarily disabled sports orders since it's hard to deal with the 3 market order fulfillment.
     // ================================================================
