@@ -1,6 +1,6 @@
 export enum MarketSide {
-  Yes = 'yes',
-  No = 'no',
+  Yes = 'Yes',
+  No = 'No',
 }
 
 export enum LatencyState {
