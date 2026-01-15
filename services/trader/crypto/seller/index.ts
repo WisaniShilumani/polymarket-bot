@@ -25,7 +25,7 @@ export const sellCryptoPositions = async () => {
       .filter((p) => !openOrderMarketIds.has(p.conditionId))
       .map((position) => ({
         tokenId: position.asset,
-        price: position.avgPrice + 0.009,
+        price: position.avgPrice + 0.005, // smaller but faster
         size: position.size,
         side: 1,
       }));
