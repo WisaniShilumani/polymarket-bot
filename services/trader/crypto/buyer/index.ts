@@ -57,6 +57,7 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
       const isInPriceRange = outcomePrice > MIN_PRICE && outcomePrice < MAX_PRICE;
       if (!isInPriceRange) continue;
       const { shouldBuy, score, maxPrice } = await evaluateBuySignal(tokenId);
+      // console.log(market.question, score.toFixed(2));
       if (!shouldBuy) continue;
       if (market.spread > 0.01) continue;
       if (outcomePrice + 0.01 >= maxPrice) continue;

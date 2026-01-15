@@ -23,6 +23,11 @@ export interface VolatilityInfo {
   priceRange: { min: number; max: number };
 }
 
+export interface SlopeMetrics {
+  hourlySlope: number; // Linear regression slope over the past hour (negative = downtrend)
+  isNegative: boolean; // Simple check if slope is negative
+}
+
 export interface BuySignal {
   maxPrice: number;
   shouldBuy: boolean;
@@ -34,6 +39,7 @@ export interface BuySignal {
     volatilityAdequacy: boolean; // is volatility high enough to expect $0.02 swings?
     upsideDeviation: number; // σ of positive returns
     asymmetryRatio: number; // upsideDeviation / downsideDeviation, >1 favors upside
+    slope: SlopeMetrics; // Slope of price curve in the past hour
   };
 }
 
@@ -189,6 +195,71 @@ const calculateVaR = (priceChanges: number[], confidenceLevel: number): number =
 };
 
 /**
+ * Calculates linear regression on price data to determine trend direction and strength.
+ * Returns slope (negative = downtrend) and R² (trend strength, 0-1).
+ */
+const calculateLinearRegression = (dataPoints: PolymarketPriceHistoryDataPoint[]): { slope: number; rSquared: number } => {
+  if (dataPoints.length < 2) return { slope: 0, rSquared: 0 };
+
+  const sorted = [...dataPoints].sort((a, b) => a.t - b.t);
+  const n = sorted.length;
+
+  // Use indices as x values (0, 1, 2, ...) for time normalization
+  const prices = sorted.map((dp) => dp.p);
+
+  // Calculate means
+  const xMean = (n - 1) / 2;
+  const yMean = prices.reduce((sum, p) => sum + p, 0) / n;
+
+  // Calculate slope: Σ(xi - x̄)(yi - ȳ) / Σ(xi - x̄)²
+  let numerator = 0;
+  let denominator = 0;
+  let ssTotal = 0;
+
+  for (let i = 0; i < n; i++) {
+    const xDiff = i - xMean;
+    const yDiff = prices[i]! - yMean;
+    numerator += xDiff * yDiff;
+    denominator += xDiff * xDiff;
+    ssTotal += yDiff * yDiff;
+  }
+
+  const slope = denominator !== 0 ? numerator / denominator : 0;
+
+  // Calculate R² (coefficient of determination)
+  const intercept = yMean - slope * xMean;
+  let ssResidual = 0;
+  for (let i = 0; i < n; i++) {
+    const predicted = intercept + slope * i;
+    ssResidual += Math.pow(prices[i]! - predicted, 2);
+  }
+
+  const rSquared = ssTotal !== 0 ? 1 - ssResidual / ssTotal : 0;
+
+  return { slope, rSquared };
+};
+
+/**
+ * Calculates the slope of the price curve for the given data points.
+ * Returns a simple slope metric - negative slope indicates downtrend.
+ */
+const calculateSlopeMetrics = (dataPoints: PolymarketPriceHistoryDataPoint[]): SlopeMetrics => {
+  if (dataPoints.length < 2) {
+    return {
+      hourlySlope: 0,
+      isNegative: false,
+    };
+  }
+
+  const { slope } = calculateLinearRegression(dataPoints);
+
+  return {
+    hourlySlope: slope,
+    isNegative: slope < 0,
+  };
+};
+
+/**
  * Calculates Expected Shortfall (CVaR) - average loss beyond VaR
  * Uses historical simulation method
  */
@@ -293,9 +364,11 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
 
     // Calculate upside deviation from fresh price history
     const startDate = subHours(new Date(), 6);
+    const hourlyStartDate = subHours(new Date(), 1); // For slope calculation
     const athStartDate = subDays(new Date(), 3);
     const endDate = new Date();
     const priceHistoryResponse = await getPriceHistory(market, startDate, endDate);
+    const hourlyPriceHistory = await getPriceHistory(market, hourlyStartDate, endDate);
     const athPriceHistoryResponse = await getPriceHistory(market, athStartDate, endDate);
     const athMaxPrice = Math.max(...athPriceHistoryResponse.history.map((dp) => dp.p));
     const latestPrice = priceHistoryResponse.history[priceHistoryResponse.history.length - 1]!.p;
@@ -308,6 +381,9 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
 
     // Asymmetry ratio: >1 means upside volatility exceeds downside (good for our strategy)
     const asymmetryRatio = downsideDeviation > 0 ? upsideDeviation / downsideDeviation : upsideDeviation > 0 ? 2 : 1;
+
+    // Calculate slope of the past hour
+    const slope = calculateSlopeMetrics(hourlyPriceHistory.history);
 
     // Volatility adequacy: need enough movement to expect $0.02 swings
     // Rule of thumb: σ should be at least half the target swing
@@ -369,6 +445,15 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
       reasons.push(`⚠️ No upswings detected in last 6h`);
     }
 
+    // 6. Hourly slope check - if negative, subtract points
+    if (slope.isNegative) {
+      // Subtract points proportional to how negative the slope is
+      // Slope is typically small (e.g., -0.001), so we scale it up for meaningful penalty
+      const slopePenalty = Math.min(25, Math.abs(slope.hourlySlope) * 10000);
+      score -= slopePenalty;
+      reasons.push(`📉 Negative slope in past hour: ${(slope.hourlySlope * 100).toFixed(3)}% (-${slopePenalty.toFixed(0)} pts)`);
+    }
+
     // Clamp score to 0-100
     score = Math.max(0, Math.min(100, score));
 
@@ -392,6 +477,7 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
         volatilityAdequacy,
         upsideDeviation,
         asymmetryRatio,
+        slope,
       },
     };
   } catch (error) {
@@ -401,7 +487,17 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
       shouldBuy: false,
       score: 0,
       reasons: [],
-      metrics: {} as any,
+      metrics: {
+        upswingRatio: 0,
+        riskRewardRatio: 0,
+        volatilityAdequacy: false,
+        upsideDeviation: 0,
+        asymmetryRatio: 0,
+        slope: {
+          hourlySlope: 0,
+          isNegative: false,
+        },
+      },
     };
   }
 };
