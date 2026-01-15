@@ -44,13 +44,13 @@ export function generateTradesHTML(report: TradesReportSummary): string {
               <a href="${marketUrl}" target="_blank" class="trade-question">${trade.question}</a>
               <div class="trade-meta">
                 <span class="trade-badge" style="background: ${sideColor}15; color: ${sideColor};">
-                  ${trade.side === Side.BUY ? '↗ BUY' : '↘ SELL'}
+                  ${trade.side === Side.BUY ? '+ Bought' : '- Sold'}
                 </span>
                 <span class="trade-badge" style="background: ${outcomeColor}15; color: ${outcomeColor};">
                   ${trade.outcome}
                 </span>
                 <span class="trade-badge trade-badge-neutral">
-                  ${trade.traderSide}
+                  ${trade.traderSide === 'TAKER' ? 'Taker' : 'Maker'}
                 </span>
                 ${trade.marketResolved ? '<span class="trade-badge" style="background: #8b5cf615; color: #8b5cf6;">RESOLVED</span>' : ''}
               </div>
@@ -66,7 +66,7 @@ export function generateTradesHTML(report: TradesReportSummary): string {
           <div class="trade-price-label">${trade.side === Side.SELL ? 'sold at' : 'bought at'}</div>
         </td>
         ${
-          trade.side === Side.SELL
+          trade.side === Side.SELL && trade.matchedPrice > 0
             ? `
         <td class="trade-cell trade-cell-right">
           <div class="trade-price">${formatPriceCents(trade.matchedPrice)}¢</div>
@@ -81,7 +81,7 @@ export function generateTradesHTML(report: TradesReportSummary): string {
         `
         }
         ${
-          trade.side === Side.SELL
+          trade.side === Side.SELL && trade.matchedPrice > 0
             ? `
         <td class="trade-cell trade-cell-right">
           <div class="trade-pnl" style="background: ${pnlBgColor}; color: ${pnlColor};">

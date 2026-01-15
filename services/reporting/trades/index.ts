@@ -132,56 +132,40 @@ interface BuyLot {
 
 /**
  * Extract the user's portions from a trade
- * Returns an array because user might have multiple positions (different outcomes/sides) in the same trade
+ * Returns an array because user might have multiple orders in maker_orders
  */
 function extractUserPortions(trade: Trade): UserTrade[] {
   const makerOrders = (trade as any).maker_orders || [];
   const results: UserTrade[] = [];
 
-  // Check if user is the main maker
-  const isMainMaker = (trade as any).maker_address?.toLowerCase() === USER_ADDRESS;
+  // Check if user is the taker (maker_address is the order initiator)
+  // When user is taker, they are BUYING
+  const isUserTaker = (trade as any).maker_address?.toLowerCase() === USER_ADDRESS;
 
-  if (isMainMaker) {
+  if (isUserTaker) {
     results.push({
       trade,
       userPortion: {
         shares: Number(trade.size),
         price: Number(trade.price),
-        side: trade.side,
+        side: Side.BUY, // Taker = buyer
         outcome: trade.outcome || 'Yes',
       },
     });
   }
 
-  // Check if user appears in maker_orders
-  const userMakerOrders = makerOrders.filter((order: any) => order.maker_address?.toLowerCase() === USER_ADDRESS);
-
-  if (userMakerOrders.length > 0) {
-    // Group user's maker_orders by outcome and side
-    const groupedOrders = new Map<string, any[]>();
-
-    for (const order of userMakerOrders) {
-      const key = `${order.outcome || 'Yes'}-${order.side || 'BUY'}`;
-      if (!groupedOrders.has(key)) {
-        groupedOrders.set(key, []);
-      }
-      groupedOrders.get(key)!.push(order);
-    }
-
-    // Create a UserTrade for each unique outcome-side combination
-    for (const [, orders] of groupedOrders) {
-      const totalShares = orders.reduce((sum: number, order: any) => sum + Number(order.matched_amount), 0);
-      const avgPrice = orders.reduce((sum: number, order: any) => sum + Number(order.price) * Number(order.matched_amount), 0) / totalShares;
-      const userOutcome = orders[0]?.outcome || trade.outcome || 'Yes';
-      const userSide = orders[0]?.side === 'BUY' ? Side.BUY : Side.SELL;
-
+  // Check if user appears in maker_orders (user was a maker)
+  // Maker = always SELLER
+  // Each maker_order is a separate trade entry - don't group them
+  for (const order of makerOrders) {
+    if (order.maker_address?.toLowerCase() === USER_ADDRESS) {
       results.push({
         trade,
         userPortion: {
-          shares: totalShares,
-          price: avgPrice, // weighted avg of order limit prices
-          side: userSide,
-          outcome: userOutcome,
+          shares: Number(order.matched_amount),
+          price: Number(order.price),
+          side: Side.SELL, // Maker = seller
+          outcome: order.outcome || trade.outcome || 'Yes',
         },
       });
     }
@@ -193,10 +177,11 @@ function extractUserPortions(trade: Trade): UserTrade[] {
 /**
  * Fetches all trades and calculates P&L for each
  * For SELL trades: P&L = (sell price - buy price) × shares
- * Buy price comes from the nearest previous BUY trades for the same asset_id (FIFO)
+ * Buy price comes from the nearest previous BUY trades for the same market+outcome (FIFO)
  */
 export const getTradesReport = async (): Promise<TradesReportSummary> => {
   const allTrades = await getTrades();
+  console.log(JSON.stringify(allTrades.slice(0, 3), null, 2));
 
   // Extract user portions from trades
   const userTrades: UserTrade[] = allTrades.flatMap((trade) => extractUserPortions(trade));
@@ -205,44 +190,47 @@ export const getTradesReport = async (): Promise<TradesReportSummary> => {
   // Sort by time (oldest first) to process trades chronologically
   const sortedTrades = [...userTrades].sort((a, b) => parseTradeDate(a.trade.match_time).getTime() - parseTradeDate(b.trade.match_time).getTime());
 
-  // FIFO cost basis tracking: Map of asset_id -> array of buy lots (oldest first)
+  // Create index mapping for sorted trades back to original userTrades
+  const sortedIndexMap = new Map<UserTrade, number>();
+  sortedTrades.forEach((ut, idx) => sortedIndexMap.set(ut, idx));
+
+  // FIFO cost basis tracking: Map of market+outcome -> array of buy lots (oldest first)
   const buyLots = new Map<string, BuyLot[]>();
 
-  // Track P&L calculations for each trade
-  const pnlResults = new Map<
-    string,
-    {
-      pnl: number;
-      avgBuyPrice: number | null;
-      costBasisDetails: Array<{ shares: number; buyPrice: number }>;
-    }
-  >();
+  // Track P&L calculations by sorted index
+  const pnlResults: Array<{
+    pnl: number;
+    avgBuyPrice: number | null;
+    costBasisDetails: Array<{ shares: number; buyPrice: number }>;
+  }> = new Array(sortedTrades.length);
 
   // First pass: Build buy lots and calculate P&L for sells using FIFO
-  for (const { trade, userPortion } of sortedTrades) {
-    const assetId = trade.asset_id;
+  // Key by market + outcome (not asset_id) since asset_ids can differ for maker vs taker
+  for (let i = 0; i < sortedTrades.length; i++) {
+    const { trade, userPortion } = sortedTrades[i]!;
+    const positionKey = `${trade.market}-${userPortion.outcome}`;
     const matchTime = parseTradeDate(trade.match_time).getTime();
 
     if (userPortion.side === Side.BUY) {
-      // Add to buy lots for this asset
-      const lots = buyLots.get(assetId) || [];
+      // Add to buy lots for this position
+      const lots = buyLots.get(positionKey) || [];
       lots.push({
         shares: userPortion.shares,
         price: userPortion.price,
         tradeId: trade.id,
         matchTime,
       });
-      buyLots.set(assetId, lots);
+      buyLots.set(positionKey, lots);
 
       // BUY trades: no realized P&L yet (only realized on SELL)
-      pnlResults.set(trade.id, {
+      pnlResults[i] = {
         pnl: 0,
         avgBuyPrice: null,
         costBasisDetails: [],
-      });
+      };
     } else {
       // SELL trade: consume shares from oldest buy lots (FIFO)
-      const lots = buyLots.get(assetId) || [];
+      const lots = buyLots.get(positionKey) || [];
       let sharesToSell = userPortion.shares;
       let totalCost = 0;
       const costBasisDetails: Array<{ shares: number; buyPrice: number }> = [];
@@ -271,22 +259,19 @@ export const getTradesReport = async (): Promise<TradesReportSummary> => {
 
       if (sharesSold > 0) {
         avgBuyPrice = totalCost / sharesSold;
-        // P&L for the portion with cost basis
+        // P&L only for the portion with cost basis
         pnl = (userPortion.price - avgBuyPrice) * sharesSold;
-        // For shares without cost basis (if any), just count as revenue
+        // Shares without cost basis don't contribute to P&L (we don't know the buy price)
         if (sharesToSell > 0) {
-          pnl += userPortion.price * sharesToSell;
-          logger.warn(
-            `SELL trade ${trade.id}: ${sharesToSell} shares sold without matching BUY (no cost basis found)`
-          );
+          logger.warn(`SELL trade ${trade.id}: ${sharesToSell.toFixed(2)} shares sold without matching BUY for ${positionKey}`);
         }
       } else {
-        // No matching buy lots found at all
-        pnl = userPortion.price * userPortion.shares;
-        logger.warn(`SELL trade ${trade.id}: No cost basis found for ${userPortion.shares} shares`);
+        // No matching buy lots found at all - can't calculate P&L
+        pnl = 0;
+        logger.warn(`SELL trade ${trade.id}: No cost basis found for ${userPortion.shares} shares in ${positionKey}`);
       }
 
-      pnlResults.set(trade.id, { pnl, avgBuyPrice, costBasisDetails });
+      pnlResults[i] = { pnl, avgBuyPrice, costBasisDetails };
     }
   }
 
@@ -313,18 +298,19 @@ export const getTradesReport = async (): Promise<TradesReportSummary> => {
 
   // Build trade reports with calculated P&L
   const tradeReports: TradeReport[] = [];
-  for (const { trade, userPortion } of userTrades) {
+  for (const userTrade of sortedTrades) {
+    const { trade, userPortion } = userTrade;
     const market = marketCache.get(trade.market);
     if (!market) continue;
 
     const executionPrice = userPortion.price;
     const shares = userPortion.shares;
 
-    const pnlResult = pnlResults.get(trade.id) || { pnl: 0, avgBuyPrice: null, costBasisDetails: [] };
+    const sortedIdx = sortedIndexMap.get(userTrade) ?? 0;
+    const pnlResult = pnlResults[sortedIdx] || { pnl: 0, avgBuyPrice: null, costBasisDetails: [] };
     const { pnl, avgBuyPrice } = pnlResult;
 
-    const percentPnL =
-      avgBuyPrice && avgBuyPrice > 0 ? ((executionPrice - avgBuyPrice) / avgBuyPrice) * 100 : 0;
+    const percentPnL = avgBuyPrice && avgBuyPrice > 0 ? ((executionPrice - avgBuyPrice) / avgBuyPrice) * 100 : 0;
 
     tradeReports.push({
       id: trade.id,
@@ -333,7 +319,7 @@ export const getTradesReport = async (): Promise<TradesReportSummary> => {
       executedAt: parseTradeDate(trade.match_time).toISOString(),
       shares,
       orderPrice: executionPrice,
-      matchedPrice: avgBuyPrice ?? executionPrice, // Show avg buy price for SELL, execution price for BUY
+      matchedPrice: avgBuyPrice ?? 0, // Cost basis (0 if unknown)
       side: userPortion.side,
       outcome: userPortion.outcome,
       traderSide: trade.trader_side,
