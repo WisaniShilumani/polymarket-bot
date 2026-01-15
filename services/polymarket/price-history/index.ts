@@ -1,4 +1,4 @@
-import { subDays, subHours } from 'date-fns';
+import { subDays, subHours, subMinutes } from 'date-fns';
 import type { PolymarketPriceHistory, PolymarketPriceHistoryDataPoint } from '../../../common/types';
 import { http } from '../../../utils/http';
 import { logger } from '../../../utils/logger';
@@ -39,7 +39,6 @@ export interface BuySignal {
     volatilityAdequacy: boolean; // is volatility high enough to expect $0.02 swings?
     upsideDeviation: number; // σ of positive returns
     asymmetryRatio: number; // upsideDeviation / downsideDeviation, >1 favors upside
-    slope: SlopeMetrics; // Slope of price curve in the past hour
   };
 }
 
@@ -367,8 +366,10 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
     const hourlyStartDate = subHours(new Date(), 1); // For slope calculation
     const athStartDate = subDays(new Date(), 3);
     const endDate = new Date();
-    const priceHistoryResponse = await getPriceHistory(market, startDate, endDate);
+    const minutelyPriceHistory = await getPriceHistory(market, subMinutes(new Date(), 15), endDate);
     const hourlyPriceHistory = await getPriceHistory(market, hourlyStartDate, endDate);
+    const priceHistoryResponse = await getPriceHistory(market, startDate, endDate);
+    const dailyPriceHistory = await getPriceHistory(market, subDays(new Date(), 1), endDate);
     const athPriceHistoryResponse = await getPriceHistory(market, athStartDate, endDate);
     const athMaxPrice = Math.max(...athPriceHistoryResponse.history.map((dp) => dp.p));
     const latestPrice = priceHistoryResponse.history[priceHistoryResponse.history.length - 1]!.p;
@@ -381,9 +382,16 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
 
     // Asymmetry ratio: >1 means upside volatility exceeds downside (good for our strategy)
     const asymmetryRatio = downsideDeviation > 0 ? upsideDeviation / downsideDeviation : upsideDeviation > 0 ? 2 : 1;
-
     // Calculate slope of the past hour
-    const slope = calculateSlopeMetrics(hourlyPriceHistory.history);
+    const minutelySlope = calculateSlopeMetrics(minutelyPriceHistory.history);
+    const hourlySlope = calculateSlopeMetrics(hourlyPriceHistory.history);
+    const sixHourSlope = calculateSlopeMetrics(priceHistoryResponse.history);
+    const dailySlope = calculateSlopeMetrics(dailyPriceHistory.history);
+    const threeDaySlope = calculateSlopeMetrics(athPriceHistoryResponse.history);
+    const areSlopesSufficientlyPositive =
+      [minutelySlope, hourlySlope, sixHourSlope, dailySlope, threeDaySlope].filter((s) => !s.isNegative).length >= 3 &&
+      !hourlySlope.isNegative &&
+      !minutelySlope.isNegative;
 
     // Volatility adequacy: need enough movement to expect $0.02 swings
     // Rule of thumb: σ should be at least half the target swing
@@ -445,21 +453,11 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
       reasons.push(`⚠️ No upswings detected in last 6h`);
     }
 
-    // 6. Hourly slope check - if negative, subtract points
-    if (slope.isNegative) {
-      // Subtract points proportional to how negative the slope is
-      // Slope is typically small (e.g., -0.001), so we scale it up for meaningful penalty
-      const slopePenalty = Math.min(25, Math.abs(slope.hourlySlope) * 10000 * 3);
-      // logger.error(market, `-${slopePenalty.toFixed(0)}`);
-      score -= slopePenalty;
-      reasons.push(`📉 Negative slope in past hour: ${(slope.hourlySlope * 100).toFixed(3)}% (-${slopePenalty.toFixed(0)} pts)`);
-    }
-
     // Clamp score to 0-100
     score = Math.max(0, Math.min(100, score));
 
     // Decision threshold: score >= 60 is a buy
-    const shouldBuy = score >= 60 && !isTooCloseToATH;
+    const shouldBuy = score >= 60 && !isTooCloseToATH && areSlopesSufficientlyPositive;
     if (shouldBuy) {
       reasons.unshift('✅ BUY SIGNAL');
     } else {
@@ -477,7 +475,6 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
         volatilityAdequacy,
         upsideDeviation,
         asymmetryRatio,
-        slope,
       },
     };
   } catch (error) {
@@ -493,10 +490,6 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
         volatilityAdequacy: false,
         upsideDeviation: 0,
         asymmetryRatio: 0,
-        slope: {
-          hourlySlope: 0,
-          isNegative: false,
-        },
       },
     };
   }

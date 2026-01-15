@@ -11,7 +11,7 @@ import logger from '../../../../utils/logger';
 import { getAccountCollateralBalance } from '../../../polymarket/account-balance';
 
 const MIN_PRICE = 0.35;
-const MAX_PRICE = 0.6;
+const MAX_PRICE = 0.65;
 const MIN_VOLUME = 10_000;
 
 const calculateMaxShares = (availableBalance: number) => {
