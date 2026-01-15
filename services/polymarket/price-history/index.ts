@@ -449,7 +449,8 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
     if (slope.isNegative) {
       // Subtract points proportional to how negative the slope is
       // Slope is typically small (e.g., -0.001), so we scale it up for meaningful penalty
-      const slopePenalty = Math.min(25, Math.abs(slope.hourlySlope) * 10000 * 2);
+      const slopePenalty = Math.min(25, Math.abs(slope.hourlySlope) * 10000 * 3);
+      // logger.error(market, `-${slopePenalty.toFixed(0)}`);
       score -= slopePenalty;
       reasons.push(`📉 Negative slope in past hour: ${(slope.hourlySlope * 100).toFixed(3)}% (-${slopePenalty.toFixed(0)} pts)`);
     }
