@@ -29,6 +29,7 @@ export const stopLossSeller = async (marketSide: MarketSide = MarketSide.Yes) =>
     const isCryptoEvent = eventData.tags?.some((t) => t.slug === 'crypto-prices');
     if (!isCryptoEvent) continue;
     for (const position of event.positions) {
+      if (position.outcome !== marketSide) continue;
       const currentOrder = orders.find((o) => o.market === position.conditionId && o.side === Side.SELL);
       const market = eventData.markets.find((m) => m.conditionId === position.conditionId);
       if (!market) continue;
@@ -38,6 +39,7 @@ export const stopLossSeller = async (marketSide: MarketSide = MarketSide.Yes) =>
         continue;
       }
       const unrealizedLoss = position.avgPrice - currentPrice;
+      console.log('Unrealized loss', unrealizedLoss);
       if (unrealizedLoss < STOP_LOSS_THRESHOLD) continue;
       logger.info(
         `🛑 STOP LOSS: Selling ${position.size} shares of ${market.question} at $${currentPrice.toFixed(2)} (avg: $${position.avgPrice.toFixed(
