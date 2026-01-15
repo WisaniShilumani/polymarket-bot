@@ -56,11 +56,11 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
       if (market.volumeNum < MIN_VOLUME) continue;
       const isInPriceRange = outcomePrice > MIN_PRICE && outcomePrice < MAX_PRICE;
       if (!isInPriceRange) continue;
-      if (market.spread > 0.01) continue;
+      if (market.spread > 0.02) continue;
 
       const { shouldBuy, score, maxPrice } = await evaluateBuySignal(tokenId);
+      // logger.highlight(`${shouldBuy ? '✅ Buying' : '❌ Not buying'} ${market.question} Score is ${score.toFixed(2)}`);
       if (outcomePrice + 0.01 >= maxPrice) continue;
-      console.log(market.question, score.toFixed(2));
       if (!shouldBuy) continue;
 
       const { totalSize, existingOrderPrice } = getPositionAndOrderSize(market.conditionId, positions, orders, marketSide);
