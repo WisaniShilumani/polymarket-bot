@@ -58,7 +58,7 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
       if (!isInPriceRange) continue;
       const { shouldBuy, score, maxPrice } = await evaluateBuySignal(tokenId);
       if (!shouldBuy) continue;
-      if (market.spread > 0.02) continue;
+      if (market.spread > 0.01) continue;
       if (outcomePrice + 0.01 >= maxPrice) continue;
       const { totalSize, existingOrderPrice } = getPositionAndOrderSize(market.conditionId, positions, orders, marketSide);
       const maxShares = calculateMaxShares(collateralBalance);
