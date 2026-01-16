@@ -1,8 +1,7 @@
 import { Side } from '@polymarket/clob-client';
-import { getTradesForUser } from '../../polymarket/trade-history';
+import { getAggregatedTrades, type AggregatedTradeWithPnl } from '../../polymarket/trade-history';
 import logger from '../../../utils/logger';
 import { POLYMARKET_FUNDER } from '../../../config';
-import type { TradeHistoryItem } from '../../../common/types';
 
 // User's wallet address
 const USER_ADDRESS = POLYMARKET_FUNDER;
@@ -83,26 +82,22 @@ export interface TradesReportSummary {
   priceRangeStats: PriceRangeStatsByOutcome;
 }
 
-interface TradeHistoryItemWithPnl extends TradeHistoryItem {
-  pnl: number;
-  averagePrice?: number;
-}
-
 /**
- * Converts a TradeHistoryItem to a TradeReport
+ * Converts an AggregatedTradeWithPnl to a TradeReport
  */
-function toTradeReport(trade: TradeHistoryItemWithPnl): TradeReport {
-  const averagePrice = trade.averagePrice ?? 0;
-  const percentPnL = averagePrice > 0 ? ((trade.price - averagePrice) / averagePrice) * 100 : 0;
+function toTradeReport(trade: AggregatedTradeWithPnl): TradeReport {
+  const matchedPrice = trade.side === 'SELL' ? trade.averagePrice : 0;
+  const orderPrice = trade.totalValue / trade.totalSize;
+  const percentPnL = matchedPrice > 0 ? ((orderPrice - matchedPrice) / matchedPrice) * 100 : 0;
 
   return {
-    id: trade.transactionHash,
-    question: trade.title,
-    image: trade.icon,
-    executedAt: new Date(trade.timestamp * 1000).toISOString(),
-    shares: trade.size,
-    orderPrice: trade.price,
-    matchedPrice: averagePrice,
+    id: trade.orderId + trade.averagePrice,
+    question: trade.question,
+    image: trade.image,
+    executedAt: trade.date.toISOString(),
+    shares: trade.totalSize,
+    orderPrice,
+    matchedPrice,
     side: trade.side === 'BUY' ? Side.BUY : Side.SELL,
     outcome: trade.outcome,
     pnl: trade.pnl,
@@ -112,14 +107,14 @@ function toTradeReport(trade: TradeHistoryItemWithPnl): TradeReport {
 }
 
 /**
- * Fetches all trades and calculates P&L for each using the getTradesForUser service
+ * Fetches all trades and calculates P&L for each using the getAggregatedTrades service
  */
 export const getTradesReport = async (): Promise<TradesReportSummary> => {
-  const trades = await getTradesForUser();
-  logger.info(`Found ${trades.length} trades for user ${USER_ADDRESS}`);
+  const trades = await getAggregatedTrades();
+  logger.info(`Found ${trades.length} aggregated trades for user ${USER_ADDRESS}`);
 
   // Convert to TradeReport format
-  const tradeReports = trades.map((trade) => toTradeReport(trade as TradeHistoryItemWithPnl));
+  const tradeReports = trades.map((trade) => toTradeReport(trade));
 
   // Sort by execution time (most recent first)
   tradeReports.sort((a, b) => new Date(b.executedAt).getTime() - new Date(a.executedAt).getTime());

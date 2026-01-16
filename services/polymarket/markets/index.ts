@@ -3,6 +3,11 @@ import logger from '../../../utils/logger';
 import { http } from '../../../utils/http';
 import { buildMarketsBySlugUrl, buildMarketsUrl } from '../utils';
 import { getClobClient } from '..';
+import { LRUCache } from 'lru-cache';
+
+const marketsCache = new LRUCache<string, PolymarketMarket>({
+  max: 1000,
+});
 
 /**
  * Fetches markets from Polymarket REST API
@@ -35,12 +40,20 @@ export const getMarketsBySlugFromRest = async (slug: string): Promise<Polymarket
   }
 };
 
-export const getMarketByAssetId = async (assetId: string): Promise<any> => {
+export const getMarketByAssetId = async (assetId: string, useCache = false): Promise<any> => {
+  if (useCache && marketsCache.has(assetId)) {
+    return marketsCache.get(assetId)!;
+  }
   const client = await getClobClient();
   const market = await client.getMarket(assetId);
   const marketBySlug = await getMarketsBySlugFromRest(market.market_slug);
-  return {
+  const result = {
     ...market,
     ...marketBySlug,
   };
+
+  if (useCache) {
+    marketsCache.set(assetId, result);
+  }
+  return result;
 };
