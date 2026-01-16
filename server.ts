@@ -1,15 +1,20 @@
 import http from 'http';
+import { URL } from 'url';
 import logger from './utils/logger';
 import { getOrdersReport } from './services/reporting/orders';
-import { getTradesReport } from './services/reporting/trades';
+import { getTradesReport, TIME_FILTER_OPTIONS } from './services/reporting/trades';
 import { generateOrdersHTML } from './views/orders';
 import { generateTradesHTML } from './views/trades';
 
 // Start HTTP server for Elastic Beanstalk health checks
 const PORT = process.env.PORT || 8080;
 const server = http.createServer((req, res) => {
+  const baseUrl = `http://${req.headers.host}`;
+  const parsedUrl = new URL(req.url || '/', baseUrl);
+  const pathname = parsedUrl.pathname;
+
   // Health check endpoint - Elastic Beanstalk checks the root path
-  if (req.url === '/' || req.url === '/health') {
+  if (pathname === '/' || pathname === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(
       JSON.stringify({
@@ -17,7 +22,7 @@ const server = http.createServer((req, res) => {
         timestamp: new Date().toISOString(),
       }),
     );
-  } else if (req.url === '/orders') {
+  } else if (pathname === '/orders') {
     getOrdersReport()
       .then((orders) => {
         const html = generateOrdersHTML(orders);
@@ -29,8 +34,14 @@ const server = http.createServer((req, res) => {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Failed to fetch orders' }));
       });
-  } else if (req.url === '/trades') {
-    getTradesReport()
+  } else if (pathname === '/trades') {
+    // Parse the startDate filter from query params
+    const startDateFilter = parsedUrl.searchParams.get('filter') || undefined;
+
+    // Validate the filter
+    const validFilter = startDateFilter && TIME_FILTER_OPTIONS.some((o) => o.value === startDateFilter) ? startDateFilter : undefined;
+
+    getTradesReport({ startDateFilter: validFilter || 'all' })
       .then((report) => {
         const html = generateTradesHTML(report);
         res.writeHead(200, { 'Content-Type': 'text/html' });

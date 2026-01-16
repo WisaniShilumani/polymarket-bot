@@ -10,8 +10,8 @@ import { evaluateBuySignal } from '../../../polymarket/price-history';
 import logger from '../../../../utils/logger';
 import { getAccountCollateralBalance } from '../../../polymarket/account-balance';
 
-const MIN_PRICE = 0.45;
-const MAX_PRICE = 0.65;
+const MIN_PRICE = 0.47;
+const MAX_PRICE = 0.62;
 const MIN_VOLUME = 10_000;
 
 const calculateMaxShares = (availableBalance: number) => {

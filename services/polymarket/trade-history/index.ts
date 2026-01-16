@@ -32,18 +32,23 @@ export interface AggregatedTradeWithPnl extends AggregatedTrade {
   averagePrice: number;
 }
 
+export interface TradeFilterOptions {
+  startDate?: Date | undefined;
+}
+
 /**
  * Aggregates partial fills by assetId.
  * Only terminates a group when the same assetId changes side (BUY→SELL or SELL→BUY).
  * Outcome changes within the same assetId+side are kept in the same group.
  */
-export const getAggregatedTrades = async (): Promise<AggregatedTradeWithPnl[]> => {
+export const getAggregatedTrades = async (options: TradeFilterOptions = {}): Promise<AggregatedTradeWithPnl[]> => {
   try {
     const clobClient = await getClobClient();
     const allTrades = await clobClient.getTrades();
-    const startDate = new Date('2026-01-14T08:00:00Z');
+    // Default to Jan 14, 2026 if no startDate provided
+    const startDate = options.startDate ?? new Date('2026-01-14T08:00:00Z');
     const trades = allTrades.filter((trade) => new Date(Number(trade.match_time) * 1000) > startDate);
-    const restTrades = await getAllTrades();
+    const restTrades = await getAllTrades(startDate);
     const restTradesByAssetIdMap = new Map<string, TradeHistoryItem[]>();
     for (const trade of restTrades) {
       if (!restTradesByAssetIdMap.has(trade.asset)) {
@@ -119,7 +124,6 @@ export const getAggregatedTrades = async (): Promise<AggregatedTradeWithPnl[]> =
       });
     }
 
-    console.log('TAKER TRADES>>>', aggregatedTakerTrades.slice(0, 2));
     const allAggregatedTrades = [...aggregatedTrades, ...aggregatedTakerTrades].sort((a, b) => b.date.getTime() - a.date.getTime());
 
     const tradesByAssetIdMap = new Map<string, AggregatedTrade[]>();
@@ -187,7 +191,7 @@ export const getTrades = async (): Promise<Trade[]> => {
   }
 };
 
-const getAllTrades = async (): Promise<TradeHistoryItem[]> => {
+const getAllTrades = async (startDate: Date): Promise<TradeHistoryItem[]> => {
   try {
     let limit = 100;
     let offset = 0;
@@ -202,7 +206,6 @@ const getAllTrades = async (): Promise<TradeHistoryItem[]> => {
         hasMore = false;
       }
     }
-    const startDate = new Date('2026-01-14T08:00:00Z');
     return trades.filter((trade) => new Date(+trade.timestamp * 1000) > startDate);
   } catch (error) {
     logger.error('Error fetching trades:', error);
@@ -212,7 +215,8 @@ const getAllTrades = async (): Promise<TradeHistoryItem[]> => {
 
 export const getTradesForUser = async (): Promise<TradeHistoryItem[]> => {
   try {
-    const trades = await getAllTrades();
+    const startDate = new Date('2026-01-14T08:00:00Z');
+    const trades = await getAllTrades(startDate);
 
     const sortedTrades = trades.sort((a, b) => b.timestamp - a.timestamp);
     const tradesByConditionIdMap = new Map<string, TradeHistoryItem[]>();
