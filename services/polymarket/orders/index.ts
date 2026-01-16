@@ -13,7 +13,7 @@ const failedOrderEventsCache = new LRUCache<string, boolean>({
 /**
  * Creates and posts a single order to Polymarket
  */
-export const createOrder = async (params: OrderParams): Promise<OrderResult> => {
+export const createOrder = async (params: OrderParams, retries = 0): Promise<OrderResult> => {
   try {
     const lastPurchaseTime = getLastPurchaseTime(params.tokenId);
     if (lastPurchaseTime && Date.now() - lastPurchaseTime < 60_000) {
@@ -49,6 +49,14 @@ export const createOrder = async (params: OrderParams): Promise<OrderResult> => 
       orderId: response.orderID,
     };
   } catch (error) {
+    if (retries < 3) {
+      if (retries > 0) {
+        logger.warn(`  🔄 Order failed, retrying with lower size: ${params.side} ${params.size} shares @ $${params.price - 0.01}`);
+        return createOrder({ ...params, price: params.size - 0.01 }, retries + 1);
+      }
+
+      return createOrder(params, retries + 1);
+    }
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     logger.error(`  ❌ Order failed for ${params.side} ${params.size} shares @ $${params.price}: ${errorMessage}`);
     return {

@@ -60,9 +60,9 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
       if (market.spread > 0.02) continue;
 
       const { shouldBuy, score, maxPrice } = await evaluateBuySignal(tokenId);
-      // logger.highlight(
-      //   `${shouldBuy ? '✅ Buying' : '❌ Not buying'} ${marketSide} @ ${outcomePrice}/${maxPrice} - ${market.question} Score is ${score.toFixed(2)}`,
-      // );
+      logger.highlight(
+        `${shouldBuy ? '✅ Buying' : '❌ Not buying'} ${marketSide} @ ${outcomePrice}/${maxPrice} - ${market.question} Score is ${score.toFixed(2)}`,
+      );
       if (outcomePrice + 0.01 >= maxPrice) continue;
       if (!shouldBuy) continue;
 
