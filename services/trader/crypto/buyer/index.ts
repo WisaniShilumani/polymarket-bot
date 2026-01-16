@@ -10,8 +10,8 @@ import { evaluateBuySignal } from '../../../polymarket/price-history';
 import logger from '../../../../utils/logger';
 import { getAccountCollateralBalance } from '../../../polymarket/account-balance';
 
-const MIN_PRICE = 0.47;
-const MAX_PRICE = 0.62;
+const MIN_PRICE = 0.45;
+const MAX_PRICE = 0.63;
 const MIN_VOLUME = 10_000;
 
 const calculateMaxShares = (availableBalance: number) => {
@@ -60,7 +60,7 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
       if (market.spread > 0.02) continue;
 
       const { shouldBuy, score, maxPrice } = await evaluateBuySignal(tokenId);
-      // logger.highlight(`${shouldBuy ? '✅ Buying' : '❌ Not buying'} ${market.question} Score is ${score.toFixed(2)}`);
+      logger.highlight(`${shouldBuy ? '✅ Buying' : '❌ Not buying'} ${marketSide} @ ${outcomePrice} - ${market.question} Score is ${score.toFixed(2)}`);
       if (outcomePrice + 0.01 >= maxPrice) continue;
       if (!shouldBuy) continue;
 
