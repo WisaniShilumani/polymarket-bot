@@ -50,7 +50,7 @@ export const createOrder = async (params: OrderParams): Promise<OrderResult> => 
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error(`  ❌ Order failed: ${errorMessage}`);
+    logger.error(`  ❌ Order failed for ${params.side} ${params.size} shares @ $${params.price}: ${errorMessage}`);
     return {
       success: false,
       error: errorMessage,
