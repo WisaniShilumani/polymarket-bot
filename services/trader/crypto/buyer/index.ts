@@ -79,7 +79,7 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
         ...market,
         size: normalizedSize,
         existingOrderPrice,
-        useMarketOrder: market.spread <= 0.01 && score >= 80,
+        useMarketOrder: false
       });
       logger.progress(`[score=${score}] Buying ${normalizedSize} shares of ${market.question} at ${outcomePrice}`);
     }

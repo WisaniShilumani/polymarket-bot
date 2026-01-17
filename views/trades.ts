@@ -563,8 +563,8 @@ export function generateTradesHTML(report: TradesReportSummary & { selectedFilte
         `
         }
         <td class="trade-cell trade-cell-right">
-          <div class="trade-time">${formatDistanceToNow(new Date(trade.executedAt), { addSuffix: true })}</div>
-          <div class="trade-date">${format(new Date(trade.executedAt), 'MMM d, yyyy')}</div>
+          <div class="trade-time">${format(new Date(trade.executedAt), 'MMM d, yyyy HH:mm:ss')}</div>
+          <div class="trade-date">${formatDistanceToNow(new Date(trade.executedAt), { addSuffix: true })}</div>
         </td>
       </tr>
     `;

@@ -57,7 +57,7 @@ export const stopLossSeller = async (marketSide: MarketSide = MarketSide.Yes) =>
         price: currentPrice,
         size: position.size,
         side: Side.SELL,
-        useMarketOrder: market.spread <= 0.01,
+        useMarketOrder: false,
       });
     }
   }
