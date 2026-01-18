@@ -251,10 +251,12 @@ const calculateSlopeMetrics = (dataPoints: PolymarketPriceHistoryDataPoint[]): S
   }
 
   const { slope } = calculateLinearRegression(dataPoints);
+  const priceDifference = dataPoints[dataPoints.length - 1]!.p - dataPoints[0]!.p;
+  const isPriceDifferentEnough = Math.abs(priceDifference) > 0.02;
 
   return {
     hourlySlope: slope,
-    isNegative: slope < 0,
+    isNegative: slope < 0 && isPriceDifferentEnough,
   };
 };
 
@@ -374,7 +376,7 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
     const athMaxPrice = Math.max(...athPriceHistoryResponse.history.map((dp) => dp.p));
     const latestPrice = priceHistoryResponse.history[priceHistoryResponse.history.length - 1]!.p;
     const distanceToATH = athMaxPrice - latestPrice;
-    const isTooCloseToATH = distanceToATH < 0.05;
+    const isTooCloseToATH = distanceToATH < 0.01;
     const priceChanges = collectPriceChanges(priceHistoryResponse.history);
     const upsideDeviation = calculateUpsideDeviation(priceChanges);
     const downsideDeviation = info.risk.downsideDeviation;
@@ -456,8 +458,8 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
     // Clamp score to 0-100
     score = Math.max(0, Math.min(100, score));
 
-    // Decision threshold: score >= 60 is a buy
-    const shouldBuy = score >= 60 && !isTooCloseToATH && areSlopesSufficientlyPositive;
+    // Decision threshold: score >= 70 is a buy
+    const shouldBuy = score >= 70 && !isTooCloseToATH && areSlopesSufficientlyPositive;
     if (shouldBuy) {
       reasons.unshift('✅ BUY SIGNAL');
     } else {

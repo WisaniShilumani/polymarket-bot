@@ -65,7 +65,7 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
         logger.highlight(
           `${shouldBuy ? '✅ Buying' : '❌ Not buying'} ${marketSide} @ ${outcomePrice}/${maxPrice} - ${market.question} Score is ${score.toFixed(2)}`,
         );
-      if (outcomePrice + 0.01 >= maxPrice) continue;
+      if (outcomePrice >= maxPrice) continue;
       if (!shouldBuy) continue;
 
       const { totalSize, existingOrderPrice } = getPositionAndOrderSize(market.conditionId, positions, orders, marketSide);
