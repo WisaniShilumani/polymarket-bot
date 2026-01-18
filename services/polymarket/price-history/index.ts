@@ -376,7 +376,7 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
     const athMaxPrice = Math.max(...athPriceHistoryResponse.history.map((dp) => dp.p));
     const latestPrice = priceHistoryResponse.history[priceHistoryResponse.history.length - 1]!.p;
     const distanceToATH = athMaxPrice - latestPrice;
-    const isTooCloseToATH = distanceToATH < 0.01;
+    const isTooCloseToATH = distanceToATH < 0.02;
     const priceChanges = collectPriceChanges(priceHistoryResponse.history);
     const upsideDeviation = calculateUpsideDeviation(priceChanges);
     const downsideDeviation = info.risk.downsideDeviation;
