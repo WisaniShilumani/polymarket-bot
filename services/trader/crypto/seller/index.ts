@@ -17,7 +17,7 @@ export const sellCryptoPositions = async () => {
     const flooredToTwoDecimalPlaces = Math.floor(remainingSizeToSell * 100) / 100;
     await createOrder({
       tokenId: position.asset,
-      price: position.avgPrice + 0.01,
+      price: position.avgPrice + 0.019,
       size: Number(flooredToTwoDecimalPlaces.toFixed(2)),
       side: Side.SELL,
     });
