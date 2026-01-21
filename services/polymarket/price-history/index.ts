@@ -569,6 +569,7 @@ export const evaluateUpSwingsFromPrice = async (market: string, basePrice: numbe
   const windowHours = 6;
   const startDate = subHours(new Date(), windowHours);
   const endDate = new Date();
+  const minSize = 0.019;
 
   try {
     const priceHistoryResponse = await getPriceHistory(market, startDate, endDate);
@@ -576,10 +577,10 @@ export const evaluateUpSwingsFromPrice = async (market: string, basePrice: numbe
     const sampleCount = history.length;
 
     if (sampleCount === 0) {
-      return { intervals: [], highestROIInterval: 0.015 };
+      return { intervals: [], highestROIInterval: minSize };
     }
 
-    const likelihoods: UpSwingsFromPriceLikelihood[] = [0.015, 0.02, 0.03, 0.04].map((delta) => {
+    const likelihoods: UpSwingsFromPriceLikelihood[] = [minSize, 0.02, 0.03, 0.04].map((delta) => {
       const { likelihood } = countWindowedUpswingEventsAboveBase(history, basePrice, delta, 60);
       return { interval: delta, likelihood };
     });
@@ -587,11 +588,11 @@ export const evaluateUpSwingsFromPrice = async (market: string, basePrice: numbe
     likelihoods.sort((a, b) => (b.likelihood !== a.likelihood ? b.likelihood - a.likelihood : b.interval - a.interval));
 
     const candidates = likelihoods.filter((x) => x.likelihood >= 0.4).map((x) => x.interval);
-    const highestROIInterval = candidates.length ? Math.max(...candidates) : 0.015;
+    const highestROIInterval = candidates.length ? Math.max(...candidates) : minSize;
 
     return { intervals: likelihoods, highestROIInterval };
   } catch (error) {
     logger.error('Error evaluating upswings from price:', error);
-    return { intervals: [], highestROIInterval  : 0.015 };
+    return { intervals: [], highestROIInterval  : minSize };
   }
 };
