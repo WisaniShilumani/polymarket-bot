@@ -42,6 +42,23 @@ export interface BuySignal {
   };
 }
 
+export interface UpSwingsFromPriceInterval {
+  delta: number; // e.g. 0.01
+  targetPrice: number; // basePrice + delta
+  count: number; // number of distinct upward crossings above targetPrice
+  likelihood: number; // 0..1, normalized crossing likelihood within the window
+}
+
+export interface UpSwingsFromPriceLikelihood {
+  interval: number; // e.g. 0.01
+  likelihood: number; // 0..1
+}
+
+export interface UpSwingsFromPriceEvaluation {
+  intervals: UpSwingsFromPriceLikelihood[]; // sorted by likelihood desc
+  highestROIInterval: number; // largest interval with likelihood >= 0.30
+}
+
 export const getPriceHistory = async (market: string, startTs: Date, endTs: Date): Promise<PolymarketPriceHistory> => {
   const url = buildPriceHistoryUrl(market, startTs, endTs);
   try {
@@ -82,6 +99,51 @@ const countUpswings = (dataPoints: PolymarketPriceHistoryDataPoint[], threshold:
   }
 
   return upswings;
+};
+
+/**
+ * For each datapoint with price >= basePrice, look ahead `windowSize` datapoints.
+ * Count an "event" if we see an upswing of at least `delta` (price[j] - price[i] >= delta)
+ * before the series dips below (basePrice - delta) inside that lookahead window.
+ *
+ * Returns a likelihood in [0, 1] as events / trials, where trials are the number of datapoints
+ * with price >= basePrice.
+ */
+const countWindowedUpswingEventsAboveBase = (
+  dataPoints: PolymarketPriceHistoryDataPoint[],
+  basePrice: number,
+  delta: number,
+  windowSize = 10,
+): { events: number; trials: number; likelihood: number } => {
+  const sorted = [...dataPoints].sort((a, b) => a.t - b.t);
+  if (sorted.length < 2) return { events: 0, trials: 0, likelihood: 0 };
+
+  const EPS = 1e-9;
+  let trials = 0;
+  let events = 0;
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const startPrice = sorted[i]!.p;
+    if (startPrice < basePrice - EPS) continue; // only consider datapoints at/above the base
+
+    trials++;
+
+    const maxJ = Math.min(sorted.length - 1, i + windowSize);
+    for (let j = i + 1; j <= maxJ; j++) {
+      const p = sorted[j]!.p;
+
+      // if we dip too far below base within the window, invalidate this trial
+      if (p < basePrice - delta - EPS) break;
+
+      // if we upswing by delta within the window, count an event
+      if (p - startPrice >= delta - EPS) {
+        events++;
+        break;
+      }
+    }
+  }
+
+  return { events, trials, likelihood: trials > 0 ? events / trials : 0 };
 };
 
 /**
@@ -494,5 +556,42 @@ export const evaluateBuySignal = async (market: string): Promise<BuySignal> => {
         asymmetryRatio: 0,
       },
     };
+  }
+};
+
+/**
+ * Evaluates how often the market "upswings" above a given base price by specific deltas,
+ * over the last 6 hours, and returns a normalized likelihood per delta.
+ *
+ * Deltas tracked: $0.01, $0.02, $0.03, $0.04
+ */
+export const evaluateUpSwingsFromPrice = async (market: string, basePrice: number): Promise<UpSwingsFromPriceEvaluation> => {
+  const windowHours = 6;
+  const startDate = subHours(new Date(), windowHours);
+  const endDate = new Date();
+
+  try {
+    const priceHistoryResponse = await getPriceHistory(market, startDate, endDate);
+    const history = priceHistoryResponse.history ?? [];
+    const sampleCount = history.length;
+
+    if (sampleCount === 0) {
+      return { intervals: [], highestROIInterval: 0.015 };
+    }
+
+    const likelihoods: UpSwingsFromPriceLikelihood[] = [0.015, 0.02, 0.03, 0.04].map((delta) => {
+      const { likelihood } = countWindowedUpswingEventsAboveBase(history, basePrice, delta, 60);
+      return { interval: delta, likelihood };
+    });
+
+    likelihoods.sort((a, b) => (b.likelihood !== a.likelihood ? b.likelihood - a.likelihood : b.interval - a.interval));
+
+    const candidates = likelihoods.filter((x) => x.likelihood >= 0.4).map((x) => x.interval);
+    const highestROIInterval = candidates.length ? Math.max(...candidates) : 0.015;
+
+    return { intervals: likelihoods, highestROIInterval };
+  } catch (error) {
+    logger.error('Error evaluating upswings from price:', error);
+    return { intervals: [], highestROIInterval  : 0.015 };
   }
 };
