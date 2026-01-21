@@ -7,7 +7,7 @@ import { getEvent } from '../../../polymarket/events';
 import { getOutcomePrice } from '../../../../utils/prices';
 import { MarketSide } from '../../../../common/enums';
 
-const STOP_LOSS_THRESHOLD = 0.08; // Exit if price drops 15 cents below avgPrice
+const STOP_LOSS_THRESHOLD = 0.05; // Exit if price drops 15 cents below avgPrice
 
 export const stopLossSeller = async (marketSide: MarketSide = MarketSide.Yes) => {
   const [positions, orders] = await Promise.all([getUserPositions(), getOpenOrders()]);

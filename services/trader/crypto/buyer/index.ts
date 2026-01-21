@@ -11,14 +11,14 @@ import logger from '../../../../utils/logger';
 import { getAccountCollateralBalance } from '../../../polymarket/account-balance';
 import { DEMO_MODE } from '../../../../config';
 
-const MIN_PRICE = 0.4;
+const MIN_PRICE = 0.5;
 const MAX_PRICE = 0.69;
 const MIN_VOLUME = 10_000;
 
 const calculateMaxShares = (availableBalance: number) => {
   const averageAnticipatedScore = 60;
   const averagePrice = 0.5;
-  const anticipatedMarketCount = 7;
+  const anticipatedMarketCount = 10;
   const maxShares = (100 * availableBalance) / (averageAnticipatedScore * averagePrice * anticipatedMarketCount);
   return Math.round(maxShares);
 };
