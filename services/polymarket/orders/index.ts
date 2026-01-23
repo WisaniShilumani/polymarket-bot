@@ -53,7 +53,7 @@ export const createOrder = async (params: OrderParams, retries = 0): Promise<Ord
     if (retries < 3) {
       if (retries > 0) {
         logger.warn(`  🔄 Order failed, retrying with lower size: ${params.side} ${params.size} shares @ $${params.price - 0.01}`);
-        return createOrder({ ...params, price: params.size - 0.01 }, retries + 1);
+        return createOrder({ ...params, size: Number((params.size - 0.01).toFixed(2)) }, retries + 1);
       }
 
       return createOrder(params, retries + 1);
