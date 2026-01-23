@@ -54,7 +54,7 @@ export const stopLossSeller = async (marketSide: MarketSide = MarketSide.Yes) =>
 
       await createOrder({
         tokenId: position.asset,
-        price: currentPrice,
+        price: position.avgPrice - STOP_LOSS_THRESHOLD,
         size: position.size,
         side: Side.SELL,
         useMarketOrder: false,
