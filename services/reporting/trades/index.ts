@@ -999,6 +999,10 @@ export interface TimeFilterOption {
 }
 
 export const TIME_FILTER_OPTIONS: TimeFilterOption[] = [
+  { value: 'all', label: 'All time', hours: Infinity },
+  { value: '7d', label: '7 days ago', hours: 7 * 24 },
+  { value: '5d', label: '5 days ago', hours: 5 * 24 },
+  { value: '3d', label: '3 days ago', hours: 3 * 24 },
   { value: '48h', label: '48 hours ago', hours: 48 },
   { value: '36h', label: '36 hours ago', hours: 36 },
   { value: '24h', label: '24 hours ago', hours: 24 },
@@ -1326,16 +1330,26 @@ function generateOutcomeStats(trades: TradeReport[]): OutcomeStats[] {
 
 function createEmptyRanges(): PriceRangeStats[] {
   return [
-    { rangeLabel: '0-10¢', minPrice: 0, maxPrice: 0.1, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
-    { rangeLabel: '10-20¢', minPrice: 0.1, maxPrice: 0.2, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
-    { rangeLabel: '20-30¢', minPrice: 0.2, maxPrice: 0.3, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
-    { rangeLabel: '30-40¢', minPrice: 0.3, maxPrice: 0.4, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
-    { rangeLabel: '40-50¢', minPrice: 0.4, maxPrice: 0.5, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
-    { rangeLabel: '50-60¢', minPrice: 0.5, maxPrice: 0.6, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
-    { rangeLabel: '60-70¢', minPrice: 0.6, maxPrice: 0.7, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
-    { rangeLabel: '70-80¢', minPrice: 0.7, maxPrice: 0.8, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
-    { rangeLabel: '80-90¢', minPrice: 0.8, maxPrice: 0.9, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
-    { rangeLabel: '90-100¢', minPrice: 0.9, maxPrice: 1.0, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '0-5¢', minPrice: 0, maxPrice: 0.05, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '5-10¢', minPrice: 0.05, maxPrice: 0.1, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '10-15¢', minPrice: 0.1, maxPrice: 0.15, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '15-20¢', minPrice: 0.15, maxPrice: 0.2, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '20-25¢', minPrice: 0.2, maxPrice: 0.25, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '25-30¢', minPrice: 0.25, maxPrice: 0.3, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '30-35¢', minPrice: 0.3, maxPrice: 0.35, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '35-40¢', minPrice: 0.35, maxPrice: 0.4, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '40-45¢', minPrice: 0.4, maxPrice: 0.45, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '45-50¢', minPrice: 0.45, maxPrice: 0.5, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '50-55¢', minPrice: 0.5, maxPrice: 0.55, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '55-60¢', minPrice: 0.55, maxPrice: 0.6, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '60-65¢', minPrice: 0.6, maxPrice: 0.65, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '65-70¢', minPrice: 0.65, maxPrice: 0.7, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '70-75¢', minPrice: 0.7, maxPrice: 0.75, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '75-80¢', minPrice: 0.75, maxPrice: 0.8, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '80-85¢', minPrice: 0.8, maxPrice: 0.85, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '85-90¢', minPrice: 0.85, maxPrice: 0.9, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '90-95¢', minPrice: 0.9, maxPrice: 0.95, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
+    { rangeLabel: '95-100¢', minPrice: 0.95, maxPrice: 1.0, tradeCount: 0, winCount: 0, lossCount: 0, winRate: 0, totalPnL: 0, avgPnL: 0 },
   ];
 }
 

@@ -8,7 +8,8 @@
     "start": "FORCE_COLOR=1 node --import tsx index.ts 2>&1 | tee -a app.log",
     "start:production": "node --import tsx dist/index.js",
     "app": "tsx app.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "sign": "tsx sign.ts"
   },
   "author": "",
   "license": "ISC",
@@ -21,12 +22,14 @@
   },
   "dependencies": {
     "@polymarket/clob-client": "^5.0.1",
+    "@types/jsonwebtoken": "^9.0.10",
     "accounting": "^0.4.1",
     "chalk": "^5.6.2",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "ethers": "^6.16.0",
     "got": "^14.6.6",
+    "jsonwebtoken": "^9.0.3",
     "lru-cache": "^11.2.4",
     "openai": "^6.15.0",
     "tsx": "^4.21.0"
