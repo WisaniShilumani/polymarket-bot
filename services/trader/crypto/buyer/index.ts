@@ -11,8 +11,17 @@ import logger from '../../../../utils/logger';
 import { getAccountCollateralBalance } from '../../../polymarket/account-balance';
 import { DEMO_MODE } from '../../../../config';
 
-const MIN_PRICE = 0.5;
-const MAX_PRICE = 0.69;
+const PriceRanges = {
+  [MarketSide.Yes]: {
+    minPrice: 0.5,
+    maxPrice: 0.7,
+  },
+  [MarketSide.No]: {
+    minPrice: 0.5,
+    maxPrice: 0.6,
+  },
+}
+
 const MIN_VOLUME = 10_000;
 
 const calculateMaxShares = (availableBalance: number) => {
@@ -56,7 +65,8 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
       const outcomePrice = getOutcomePrice(market, marketSide);
       const tokenId = JSON.parse(market.clobTokenIds as unknown as string)[clobTokenIndex];
       if (market.volumeNum < MIN_VOLUME) continue;
-      const isInPriceRange = outcomePrice > MIN_PRICE && outcomePrice < MAX_PRICE;
+      const priceRange = PriceRanges[marketSide];
+      const isInPriceRange = outcomePrice > priceRange.minPrice && outcomePrice < priceRange.maxPrice;
       if (!isInPriceRange) continue;
       if (market.spread > 0.02) continue;
 

@@ -1341,7 +1341,7 @@ function createEmptyRanges(): PriceRangeStats[] {
 
 function populateRangeStats(ranges: PriceRangeStats[], trades: TradeReport[]): void {
   for (const trade of trades) {
-    const price = trade.orderPrice;
+    const price = trade.matchedPrice;
 
     // Find the matching range
     for (const range of ranges) {
