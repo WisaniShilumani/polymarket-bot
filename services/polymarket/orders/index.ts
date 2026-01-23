@@ -17,7 +17,7 @@ export const createOrder = async (params: OrderParams, retries = 0): Promise<Ord
   try {
     logger.money(`  💰 Creating order: ${params.side} ${params.size} shares @ $${params.price}`);
     const lastPurchaseTime = getLastPurchaseTime(params.tokenId);
-    if (lastPurchaseTime && Date.now() - lastPurchaseTime < 60_000) {
+    if (lastPurchaseTime && Date.now() - lastPurchaseTime < 60_000 && params.side === Side.BUY) {
       logger.info(`Skipping purchase because last purchase was less than 1 minute ago for token ${params.tokenId}`);
       return { success: true, orderId: 'LAST_PURCHASE_TIME_CACHE_HIT' };
     }
