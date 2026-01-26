@@ -13,14 +13,14 @@ import { DEMO_MODE } from '../../../../config';
 
 const PriceRanges = {
   [MarketSide.Yes]: {
-    minPrice: 0.5,
+    minPrice: 0.45,
     maxPrice: 0.7,
   },
   [MarketSide.No]: {
-    minPrice: 0.5,
-    maxPrice: 0.6,
+    minPrice: 0.4,
+    maxPrice: 0.65,
   },
-}
+};
 
 const MIN_VOLUME = 10_000;
 
@@ -89,7 +89,7 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
         ...market,
         size: normalizedSize,
         existingOrderPrice,
-        useMarketOrder: false
+        useMarketOrder: false,
       });
       logger.progress(`[score=${score}] Buying ${normalizedSize} shares of ${market.question} at ${outcomePrice}`);
     }
