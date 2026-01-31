@@ -63,6 +63,7 @@ export const buyCryptoEvents = async (marketSide: MarketSide = MarketSide.Yes) =
       if (market.closed) continue;
       if (market.feesEnabled) continue;
       const outcomePrice = getOutcomePrice(market, marketSide);
+      if (!market.clobTokenIds) continue;
       const tokenId = JSON.parse(market.clobTokenIds as unknown as string)[clobTokenIndex];
       if (market.volumeNum < MIN_VOLUME) continue;
       const priceRange = PriceRanges[marketSide];
